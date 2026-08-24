@@ -3,6 +3,7 @@
 #ifdef CMS_LOGGER_TEST
 
 #include <iostream>
+#include <cassert>
 #include "../src/cmsAsyncLogger.h"
 
 /**
@@ -64,13 +65,18 @@ int main() {
 
     std::cout << "\n=== Test 4: 큐 오버플로우 테스트 ===" << std::endl;
 
+    logger.setRuntimeLevel(cms::LogLevel::Info);
+    while (logger.update());
+
     // 큐 깊이(16)보다 많은 로그를 빠르게 투입
     for (int i = 0; i < 20; ++i) {
         logger.i("연속 로그 테스트 #%d", i);
     }
 
     std::cout << "큐에 저장된 마지막 16개의 로그만 출력됩니다:" << std::endl;
-    while (logger.update());
+    size_t processed = 0;
+    while (logger.update()) ++processed;
+    assert(processed == 16);
 
     return 0;
 }

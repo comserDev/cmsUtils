@@ -61,6 +61,17 @@ namespace cms {
             if (N > 0) _data[0] = '\0';
         }
 
+        String(const String& other) : StringBase(_data, N, 0) {
+            _data[0] = '\0';
+            StringBase::operator=(other);
+        }
+
+        String(String&& other) noexcept : StringBase(_data, N, 0) {
+            _data[0] = '\0';
+            StringBase::operator=(other);
+            other.clear();
+        }
+
         /// 문자열 리터럴로부터 객체를 생성합니다.
         ///
         /// Why: 선언과 동시에 값을 할당하는 편의성을 제공하기 위함입니다.
@@ -90,7 +101,8 @@ namespace cms {
         /// @endcode
         ///
         /// @param src 복사할 원본 문자열 포인터
-        String(const char* src) : StringBase(_data, N) {
+        String(const char* src) : StringBase(_data, N, 0) {
+            _data[0] = '\0';
             *this = src;
         }
 
@@ -119,6 +131,14 @@ namespace cms {
         // --------------------------------------------------------------------------------------------------
         String& operator=(const String& other) {
             StringBase::operator=(other);
+            return *this;
+        }
+
+        String& operator=(String&& other) noexcept {
+            if (this != &other) {
+                StringBase::operator=(other);
+                other.clear();
+            }
             return *this;
         }
 

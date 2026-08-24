@@ -486,6 +486,7 @@ namespace cms {
         // @param padChar 채움 문자 (예: '0', ' ')
         // ---------------------------------------------------------
         void appendInt(char* buffer, size_t maxLen, size_t& curLen, long val, int width = 0, char padChar = ' ');
+        void appendUInt(char* buffer, size_t maxLen, size_t& curLen, unsigned long val, int width = 0, char padChar = ' ');
 
         // ---------------------------------------------------------
         // [appendFloat] 실수값을 문자열로 변환하여 버퍼 끝에 추가합니다.

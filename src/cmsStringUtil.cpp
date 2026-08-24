@@ -10,6 +10,8 @@
 #include <cstdlib>     // strtol
 #include <sys/types.h> // regex_t 타입
 #include <cstdint>     // uint64_t
+#include <cmath>       // isfinite
+#include <limits>      // numeric_limits
 
 #ifdef ARDUINO
 // Arduino는 기본 환경에 정규식이 없으므로 POSIX regex를 명시적으로 포함합니다.
@@ -47,25 +49,17 @@ namespace {
     /// @param uval 변환할 값
     /// @param width 최소 출력 너비
     /// @param padChar 채움 문자
-    void appendUIntInternal(char* buffer, size_t maxLen, size_t& curLen, unsigned long uval, int width, char padChar) {
-        // 1. 숫자 자릿수 계산 (분기 예측 최적화)
-        int digitsCount;
-        if (uval < 10) digitsCount = 1;
-        else if (uval < 100) digitsCount = 2;
-        else if (uval < 1000) digitsCount = 3;
-        else if (uval < 10000) digitsCount = 4;
-        else if (uval < 100000) digitsCount = 5;
-        else if (uval < 1000000) digitsCount = 6;
-        else if (uval < 10000000) digitsCount = 7;
-        else if (uval < 100000000) digitsCount = 8;
-        else if (uval < 1000000000) digitsCount = 9;
-        else digitsCount = 10;
+    bool appendUIntInternal(char* buffer, size_t maxLen, size_t& curLen, unsigned long uval, int width, char padChar) {
+        if (!buffer || maxLen == 0 || curLen >= maxLen) return false;
+
+        int digitsCount = 1;
+        for (unsigned long n = uval; n >= 10; n /= 10) ++digitsCount;
 
         // 2. 전체 출력 길이 결정 (Padding 포함)
         int totalLen = (digitsCount > width) ? digitsCount : width;
 
         // 3. 버퍼 공간 확인
-        if (curLen + totalLen >= maxLen) return;
+        if (totalLen < 0 || static_cast<size_t>(totalLen) > maxLen - 1 - curLen) return false;
 
         // 4. 끝 지점부터 역순으로 채우기 (Reverse 과정 생략)
         size_t startIdx = curLen;
@@ -100,7 +94,8 @@ namespace {
         while (writeIdx > startIdx) {
             buffer[--writeIdx] = padChar;
         }
-        }
+        return true;
+    }
 
         /// [computeLPS] KMP 알고리즘용 부분 일치 테이블(LPS) 생성
         ///
@@ -849,7 +844,20 @@ namespace cms {
 
             // 2. 안전 복사: 대상 버퍼(dest)의 크기를 넘지 않도록 길이를 조절하여 복사합니다.
             size_t byteLen = endPtr - startPtr;
-            if (byteLen >= destLen) byteLen = destLen - 1;
+            if (byteLen >= destLen) {
+                const size_t limit = destLen - 1;
+                size_t safeLen = 0;
+                while (safeLen < byteLen) {
+                    const unsigned char lead = static_cast<unsigned char>(startPtr[safeLen]);
+                    size_t charLen = 1;
+                    if ((lead & 0xE0) == 0xC0) charLen = 2;
+                    else if ((lead & 0xF0) == 0xE0) charLen = 3;
+                    else if ((lead & 0xF8) == 0xF0) charLen = 4;
+                    if (safeLen + charLen > limit) break;
+                    safeLen += charLen;
+                }
+                byteLen = safeLen;
+            }
             memcpy(dest, startPtr, byteLen);
             dest[byteLen] = '\0';
             return byteLen;
@@ -950,7 +958,7 @@ namespace cms {
 
             // 마지막 세그먼트 추가
             tokens[count].ptr = start;
-            tokens[count].len = (size_t)(p - start);
+            tokens[count].len = strlen(start);
             return ++count;
         }
 
@@ -984,17 +992,24 @@ namespace cms {
         /// @param width 최소 출력 너비
         /// @param padChar 채움 문자 (예: '0', ' ')
         void appendInt(char* buffer, size_t maxLen, size_t& curLen, long val, int width, char padChar) {
-            // 1. 방어적 코드: 버퍼가 이미 가득 찼다면 중단합니다.
-            if (curLen >= maxLen - 1) return;
+            if (!buffer || maxLen == 0 || curLen >= maxLen) return;
             unsigned long uval;
             if (val < 0) {
+                const size_t originalLen = curLen;
                 buffer[curLen++] = '-';
                 uval = static_cast<unsigned long>(-(val + 1)) + 1;
-                appendUIntInternal(buffer, maxLen, curLen, uval, width > 0 ? width - 1 : 0, padChar);
+                if (!appendUIntInternal(buffer, maxLen, curLen, uval, width > 0 ? width - 1 : 0, padChar)) {
+                    curLen = originalLen;
+                    buffer[curLen] = '\0';
+                }
             } else {
                 uval = static_cast<unsigned long>(val);
                 appendUIntInternal(buffer, maxLen, curLen, uval, width, padChar);
             }
+        }
+
+        void appendUInt(char* buffer, size_t maxLen, size_t& curLen, unsigned long val, int width, char padChar) {
+            appendUIntInternal(buffer, maxLen, curLen, val, width, padChar);
         }
 
         /// [appendFloat] 실수값을 문자열로 변환하여 추가
@@ -1005,26 +1020,35 @@ namespace cms {
         /// @param val 변환할 실수값
         /// @param decimalPlaces 소수점 이하 출력 자리수
         void appendFloat(char* buffer, size_t maxLen, size_t& curLen, double val, int decimalPlaces) {
-            if (curLen >= maxLen - 1) return;
+            if (!buffer || maxLen == 0 || curLen >= maxLen) return;
+            if (!std::isfinite(val)) return;
             if (decimalPlaces < 0) decimalPlaces = 0;
             if (decimalPlaces > 9) decimalPlaces = 9;
 
+            char formatted[64] = { '\0' };
+            size_t formattedLen = 0;
             double dval = val;
             if (dval < 0) {
-                buffer[curLen++] = '-';
+                formatted[formattedLen++] = '-';
                 dval = -dval;
             }
 
             // 1. 반올림 보정 (나눗셈 대신 미리 계산된 테이블 사용)
             dval += roundingOffsets[decimalPlaces];
 
+            // ULONG_MAX를 double로 직접 변환하면 64-bit에서 2^64로 반올림될 수 있습니다.
+            // 절반값으로부터 정확한 2^N exclusive upper bound를 구성합니다.
+            const unsigned long halfRange = std::numeric_limits<unsigned long>::max() / 2UL + 1UL;
+            const double unsignedLongUpperExclusive = static_cast<double>(halfRange) * 2.0;
+            if (!std::isfinite(dval) || dval >= unsignedLongUpperExclusive) return;
+
             // 2. 정수부 추출 및 추가
-            unsigned long intPart = (unsigned long)dval;
-            appendInt(buffer, maxLen, curLen, (long)intPart, 0, ' ');
+            unsigned long intPart = static_cast<unsigned long>(dval);
+            if (!appendUIntInternal(formatted, sizeof(formatted), formattedLen, intPart, 0, ' ')) return;
 
             // 3. 소수부 추출 및 추가 (정수 연산으로 변환하여 정밀도 확보)
-            if (decimalPlaces > 0 && curLen < maxLen - 1) {
-                buffer[curLen++] = '.';
+            if (decimalPlaces > 0) {
+                formatted[formattedLen++] = '.';
 
                 double fracPart = dval - (double)intPart;
                 // 부동 소수점 오차 보정을 위해 미세한 값(epsilon)을 더함 (double 정밀도에 맞춰 조정)
@@ -1035,8 +1059,12 @@ namespace cms {
                     fracInt = (unsigned long)powersOf10[decimalPlaces] - 1;
                 }
 
-                appendUIntInternal(buffer, maxLen, curLen, fracInt, decimalPlaces, '0');
+                if (!appendUIntInternal(formatted, sizeof(formatted), formattedLen, fracInt, decimalPlaces, '0')) return;
             }
+
+            if (formattedLen > maxLen - 1 - curLen) return;
+            memcpy(buffer + curLen, formatted, formattedLen + 1);
+            curLen += formattedLen;
         }
 
         /// [contains] 부분 문자열 포함 여부 확인
@@ -1265,125 +1293,50 @@ namespace cms {
         size_t sanitizeUtf8(char* str, size_t maxLen) {
             if (!str || maxLen == 0) return 0;
 
-            unsigned char* src = reinterpret_cast<unsigned char*>(str);
-            unsigned char* dst = src;
-            const char* replacement = "\xEF\xBF\xBD"; // U+FFFD 대체문자(UTF-8 바이트 시퀀스)
-            const size_t replLen = 3;
+            size_t currentLen = 0;
+            while (currentLen < maxLen - 1 && str[currentLen] != '\0') ++currentLen;
+            str[currentLen] = '\0';
 
-            // 한 번의 선형 통과로 문자열을 재작성하여 O(n) 동작 보장
-            while (*src) {
-                // 유효한 UTF-8 시퀀스와 길이를 검사합니다
-                if (src[0] <= 0x7F) {
-                    // ASCII 한 바이트
-                    if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) >= maxLen - 1) break;
-                    *dst++ = *src++;
-                } else if (src[0] >= 0xC2 && src[0] <= 0xDF) {
-                    // 2-byte sequence
-                    if (src[1] && (src[1] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 2 >= maxLen) break;
-                        *dst++ = *src++;
-                        *dst++ = *src++;
-                    } else {
-                        // 유효하지 않음: 대체문자(혹은 공간 부족 시 '?') 로 대체
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] == 0xE0) {
-                    if (src[1] && src[2] && src[1] >= 0xA0 && src[1] <= 0xBF && (src[2] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 3 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] >= 0xE1 && src[0] <= 0xEC) {
-                    if (src[1] && src[2] && (src[1] & 0xC0) == 0x80 && (src[2] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 3 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] == 0xED) {
-                    if (src[1] && src[2] && src[1] >= 0x80 && src[1] <= 0x9F && (src[2] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 3 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] >= 0xEE && src[0] <= 0xEF) {
-                    if (src[1] && src[2] && (src[1] & 0xC0) == 0x80 && (src[2] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 3 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] == 0xF0) {
-                    if (src[1] && src[2] && src[3] && src[1] >= 0x90 && src[1] <= 0xBF && (src[2] & 0xC0) == 0x80 && (src[3] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 4 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] >= 0xF1 && src[0] <= 0xF3) {
-                    if (src[1] && src[2] && src[3] && (src[1] & 0xC0) == 0x80 && (src[2] & 0xC0) == 0x80 && (src[3] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 4 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else if (src[0] == 0xF4) {
-                    if (src[1] && src[2] && src[3] && src[1] >= 0x80 && src[1] <= 0x8F && (src[2] & 0xC0) == 0x80 && (src[3] & 0xC0) == 0x80) {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + 4 >= maxLen) break;
-                        *dst++ = *src++; *dst++ = *src++; *dst++ = *src++; *dst++ = *src++;
-                    } else {
-                        if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                            memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                        } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                            *dst++ = '?'; src += 1;
-                        } else break;
-                    }
-                } else {
-                    // 어떤 규칙에도 맞지 않는 바이트
-                    if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) + replLen < maxLen) {
-                        memcpy(dst, replacement, replLen); dst += replLen; src += 1;
-                    } else if ((size_t)(dst - reinterpret_cast<unsigned char*>(str)) < maxLen - 1) {
-                        *dst++ = '?'; src += 1;
-                    } else break;
+            size_t offset = 0;
+            while (offset < currentLen) {
+                const unsigned char* p = reinterpret_cast<const unsigned char*>(str + offset);
+                size_t validLen = 0;
+
+                if (p[0] <= 0x7F) validLen = 1;
+                else if (p[0] >= 0xC2 && p[0] <= 0xDF && offset + 1 < currentLen && (p[1] & 0xC0) == 0x80) validLen = 2;
+                else if (p[0] == 0xE0 && offset + 2 < currentLen && p[1] >= 0xA0 && p[1] <= 0xBF && (p[2] & 0xC0) == 0x80) validLen = 3;
+                else if (((p[0] >= 0xE1 && p[0] <= 0xEC) || (p[0] >= 0xEE && p[0] <= 0xEF)) &&
+                         offset + 2 < currentLen && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80) validLen = 3;
+                else if (p[0] == 0xED && offset + 2 < currentLen && p[1] >= 0x80 && p[1] <= 0x9F && (p[2] & 0xC0) == 0x80) validLen = 3;
+                else if (p[0] == 0xF0 && offset + 3 < currentLen && p[1] >= 0x90 && p[1] <= 0xBF &&
+                         (p[2] & 0xC0) == 0x80 && (p[3] & 0xC0) == 0x80) validLen = 4;
+                else if (p[0] >= 0xF1 && p[0] <= 0xF3 && offset + 3 < currentLen &&
+                         (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80 && (p[3] & 0xC0) == 0x80) validLen = 4;
+                else if (p[0] == 0xF4 && offset + 3 < currentLen && p[1] >= 0x80 && p[1] <= 0x8F &&
+                         (p[2] & 0xC0) == 0x80 && (p[3] & 0xC0) == 0x80) validLen = 4;
+
+                if (validLen != 0) {
+                    offset += validLen;
+                    continue;
                 }
+
+                if (currentLen + 2 > maxLen - 1) {
+                    str[offset] = '\0';
+                    return offset;
+                }
+
+                // Move the unread suffix, including its terminator, before writing U+FFFD.
+                memmove(str + offset + 3, str + offset + 1, currentLen - offset);
+                str[offset] = static_cast<char>(0xEF);
+                str[offset + 1] = static_cast<char>(0xBF);
+                str[offset + 2] = static_cast<char>(0xBD);
+                currentLen += 2;
+                offset += 3;
             }
 
-            // 최종 널 종료
-            size_t finalLen = (size_t)(dst - reinterpret_cast<unsigned char*>(str));
-            if (finalLen < maxLen) *dst = '\0';
-            else { finalLen = maxLen - 1; *(reinterpret_cast<unsigned char*>(str) + finalLen) = '\0'; }
+            str[currentLen] = '\0';
+            return currentLen;
 
-            return finalLen;
         }
 
         /// [appendPrintf] 초경량 포맷팅 엔진

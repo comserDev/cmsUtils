@@ -290,6 +290,13 @@ namespace cms {
         updatePeak();
     }
 
+    void StringBase::appendUInt(unsigned long val, int width, char padChar) {
+        size_t curLen = _len;
+        cms::string::appendUInt(_buf, _capacity, curLen, val, width, padChar);
+        _len = static_cast<uint16_t>(curLen);
+        updatePeak();
+    }
+
     /// 실수 데이터를 텍스트로 변환하여 덧붙입니다.
     /// @param val 추가할 실수 값
     /// @param decimalPlaces 소수점 이하 자리수
@@ -380,7 +387,7 @@ namespace cms {
 
     /// 스트림 스타일로 unsigned long 정수를 결합합니다.
     StringBase& StringBase::operator<<(unsigned long v) {
-        appendInt((long)v);
+        appendUInt(v);
         return *this;
     }
 

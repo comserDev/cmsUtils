@@ -47,6 +47,10 @@ namespace cms {
          */
         ~StringBase() = default;
 
+        StringBase(const StringBase&) = delete;
+        StringBase(StringBase&&) = delete;
+        StringBase& operator=(StringBase&&) = delete;
+
         /// 현재 버퍼의 사용량을 퍼센트(%) 단위로 계산합니다.
         ///
         /// Why: 런타임 중 버퍼 오버플로우 위험을 모니터링하기 위함입니다.
@@ -222,6 +226,7 @@ namespace cms {
         /// @param width 최소 출력 너비 (단위: chars)
         /// @param padChar 채움 문자 (예: '0', ' ')
         void appendInt(long val, int width = 0, char padChar = ' ');
+        void appendUInt(unsigned long val, int width = 0, char padChar = ' ');
         /// 실수 값을 문자열로 변환하여 기존 내용 뒤에 덧붙입니다.
         void appendFloat(float val, int decimalPlaces = 2);
 

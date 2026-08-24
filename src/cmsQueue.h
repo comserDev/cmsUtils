@@ -174,6 +174,11 @@ public:
 #endif
     }
 
+    ThreadSafeQueue(const ThreadSafeQueue&) = delete;
+    ThreadSafeQueue& operator=(const ThreadSafeQueue&) = delete;
+    ThreadSafeQueue(ThreadSafeQueue&&) = delete;
+    ThreadSafeQueue& operator=(ThreadSafeQueue&&) = delete;
+
     /// 할당된 뮤텍스 자원을 시스템에 반환합니다.
     ///
     /// 사용 예:
