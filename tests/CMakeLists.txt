@@ -81,3 +81,59 @@ cms_configure_target(cms_status_tests)
 
 add_test(NAME cms.status COMMAND cms_status_tests)
 set_tests_properties(cms.status PROPERTIES TIMEOUT 30)
+
+add_library(cms_string_view_compile_contract OBJECT
+    compile/test_string_view_contract.cpp
+)
+
+target_link_libraries(cms_string_view_compile_contract PRIVATE cms_embedded_utils)
+cms_configure_target(cms_string_view_compile_contract)
+
+add_library(cms_string_buffer_compile_contract OBJECT
+    compile/test_string_buffer_contract.cpp
+)
+
+target_link_libraries(cms_string_buffer_compile_contract PRIVATE cms_embedded_utils)
+cms_configure_target(cms_string_buffer_compile_contract)
+
+add_library(cms_string_view_header_compile OBJECT
+    compile/test_string_view_header.cpp
+)
+
+target_compile_features(cms_string_view_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_string_view_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_string_view_header_compile)
+
+add_library(cms_string_buffer_header_compile OBJECT
+    compile/test_string_buffer_header.cpp
+)
+
+target_compile_features(cms_string_buffer_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_string_buffer_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_string_buffer_header_compile)
+
+add_executable(cms_string_view_tests
+    unit/test_string_view.cpp
+)
+
+target_link_libraries(cms_string_view_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_string_view_tests PRIVATE support)
+cms_configure_target(cms_string_view_tests)
+
+add_test(NAME cms.string_view COMMAND cms_string_view_tests)
+set_tests_properties(cms.string_view PROPERTIES TIMEOUT 30)
+
+add_executable(cms_string_buffer_tests
+    unit/test_string_buffer.cpp
+)
+
+target_link_libraries(cms_string_buffer_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_string_buffer_tests PRIVATE support)
+cms_configure_target(cms_string_buffer_tests)
+
+add_test(NAME cms.string_buffer COMMAND cms_string_buffer_tests)
+set_tests_properties(cms.string_buffer PROPERTIES TIMEOUT 30)
