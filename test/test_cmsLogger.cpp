@@ -3,8 +3,8 @@
 #ifdef CMS_LOGGER_TEST
 
 #include <iostream>
-#include <cassert>
 #include "../src/cmsAsyncLogger.h"
+#include "test.h"
 
 /**
  * @brief 테스트용 커스텀 로거
@@ -76,9 +76,9 @@ int main() {
     std::cout << "큐에 저장된 마지막 16개의 로그만 출력됩니다:" << std::endl;
     size_t processed = 0;
     while (logger.update()) ++processed;
-    assert(processed == 16);
+    CMS_TEST_CHECK(processed == 16);
 
-    return 0;
+    return cms::test::finish();
 }
 
 #endif // CMS_LOGGER_TEST
