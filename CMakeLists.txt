@@ -110,6 +110,7 @@ add_library(cms_embedded_utils STATIC
 target_compile_features(cms_embedded_utils PUBLIC cxx_std_17)
 
 target_include_directories(cms_embedded_utils PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
