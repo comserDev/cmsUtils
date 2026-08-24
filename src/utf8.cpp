@@ -1,0 +1,181 @@
+#include <cms/utf8.h>
+
+#include <limits>
+
+#include <cms/detail/utf8_decoder.h>
+
+namespace cms {
+namespace utf8 {
+
+namespace {
+
+constexpr char replacement[] = {
+    static_cast<char>(0xEF),
+    static_cast<char>(0xBF),
+    static_cast<char>(0xBD)
+};
+
+bool additionOverflows(std::size_t value, std::size_t increment) noexcept {
+    return increment > (std::numeric_limits<std::size_t>::max)() - value;
+}
+
+WriteResult failure(Status status) noexcept {
+    return {status, 0, 0};
+}
+
+} // namespace
+
+DecodeResult decodeNext(StringView input, std::size_t offset) noexcept {
+    return detail::utf8::decodeNext(input, offset);
+}
+
+Status validate(StringView input) noexcept {
+    std::size_t offset = 0;
+    while (offset < input.size()) {
+        const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
+        if (decoded.status != Status::ok) {
+            return Status::invalid_utf8;
+        }
+
+        offset += decoded.bytes;
+    }
+
+    return Status::ok;
+}
+
+ParseResult<std::size_t> count(StringView input) noexcept {
+    std::size_t offset = 0;
+    std::size_t codePoints = 0;
+
+    while (offset < input.size()) {
+        const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
+        if (decoded.status != Status::ok) {
+            return {Status::invalid_utf8, codePoints, offset};
+        }
+
+        offset += decoded.bytes;
+        ++codePoints;
+    }
+
+    return {Status::ok, codePoints, input.size()};
+}
+
+WriteResult substring(
+    StringView input,
+    std::size_t firstCodePoint,
+    std::size_t requestedCount,
+    StringBuffer output) noexcept {
+    if (!output.valid()) {
+        return failure(Status::invalid_argument);
+    }
+
+    std::size_t offset = 0;
+    std::size_t codePointIndex = 0;
+    std::size_t selectedCount = 0;
+    std::size_t startByte = 0;
+    std::size_t endByte = 0;
+    bool startFound = firstCodePoint == 0;
+
+    while (offset < input.size()) {
+        const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
+        if (decoded.status != Status::ok) {
+            return failure(Status::invalid_utf8);
+        }
+
+        if (!startFound && codePointIndex == firstCodePoint) {
+            startByte = offset;
+            endByte = offset;
+            startFound = true;
+        }
+
+        const std::size_t nextOffset = offset + decoded.bytes;
+        if (startFound && selectedCount < requestedCount) {
+            endByte = nextOffset;
+            ++selectedCount;
+        }
+
+        offset = nextOffset;
+        ++codePointIndex;
+    }
+
+    if (!startFound) {
+        if (firstCodePoint != codePointIndex) {
+            return failure(Status::out_of_range);
+        }
+
+        startByte = input.size();
+        endByte = input.size();
+    }
+
+    // Both offsets are ordered positions bounded by input.size(), so this
+    // subtraction cannot overflow.
+    const std::size_t required = endByte - startByte;
+    if (required > output.maxSize()) {
+        return {Status::no_space, 0, required};
+    }
+
+    for (std::size_t index = 0; index < required; ++index) {
+        output.data()[index] = input[startByte + index];
+    }
+
+    const Status commitStatus = output.commit(required);
+    if (commitStatus != Status::ok) {
+        return failure(commitStatus);
+    }
+
+    return {Status::ok, required, required};
+}
+
+WriteResult sanitize(StringView input, StringBuffer output) noexcept {
+    if (!output.valid()) {
+        return failure(Status::invalid_argument);
+    }
+
+    std::size_t required = 0;
+    std::size_t offset = 0;
+    while (offset < input.size()) {
+        const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
+        const std::size_t increment =
+            decoded.status == Status::ok ? decoded.bytes : sizeof(replacement);
+
+        if (additionOverflows(required, increment)) {
+            return failure(Status::out_of_range);
+        }
+
+        required += increment;
+        offset += decoded.bytes;
+    }
+
+    if (required > output.maxSize()) {
+        return {Status::no_space, 0, required};
+    }
+
+    offset = 0;
+    std::size_t writeOffset = 0;
+    while (offset < input.size()) {
+        const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
+        if (decoded.status == Status::ok) {
+            for (std::size_t index = 0; index < decoded.bytes; ++index) {
+                output.data()[writeOffset + index] = input[offset + index];
+            }
+            writeOffset += decoded.bytes;
+        } else {
+            for (std::size_t index = 0; index < sizeof(replacement); ++index) {
+                output.data()[writeOffset + index] = replacement[index];
+            }
+            writeOffset += sizeof(replacement);
+        }
+
+        offset += decoded.bytes;
+    }
+
+    const Status commitStatus = output.commit(writeOffset);
+    if (commitStatus != Status::ok) {
+        return failure(commitStatus);
+    }
+
+    return {Status::ok, writeOffset, required};
+}
+
+} // namespace utf8
+} // namespace cms

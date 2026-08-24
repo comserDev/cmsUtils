@@ -137,3 +137,31 @@ cms_configure_target(cms_string_buffer_tests)
 
 add_test(NAME cms.string_buffer COMMAND cms_string_buffer_tests)
 set_tests_properties(cms.string_buffer PROPERTIES TIMEOUT 30)
+
+add_library(cms_utf8_compile_contract OBJECT
+    compile/test_utf8_contract.cpp
+)
+
+target_link_libraries(cms_utf8_compile_contract PRIVATE cms_embedded_utils)
+cms_configure_target(cms_utf8_compile_contract)
+
+add_library(cms_utf8_header_compile OBJECT
+    compile/test_utf8_header.cpp
+)
+
+target_compile_features(cms_utf8_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_utf8_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_utf8_header_compile)
+
+add_executable(cms_utf8_tests
+    unit/test_utf8.cpp
+)
+
+target_link_libraries(cms_utf8_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_utf8_tests PRIVATE support)
+cms_configure_target(cms_utf8_tests)
+
+add_test(NAME cms.utf8 COMMAND cms_utf8_tests)
+set_tests_properties(cms.utf8 PROPERTIES TIMEOUT 30)

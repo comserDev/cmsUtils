@@ -105,6 +105,7 @@ add_library(cms_embedded_utils STATIC
     src/cmsAsyncLogger.cpp
     src/cmsStringBase.cpp
     src/cmsStringUtil.cpp
+    src/utf8.cpp
 )
 
 target_compile_features(cms_embedded_utils PUBLIC cxx_std_17)
