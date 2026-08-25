@@ -193,3 +193,31 @@ cms_configure_target(cms_static_string_tests)
 
 add_test(NAME cms.static_string COMMAND cms_static_string_tests)
 set_tests_properties(cms.static_string PROPERTIES TIMEOUT 30)
+
+add_library(cms_string_ops_compile_contract OBJECT
+    compile/test_string_ops_contract.cpp
+)
+
+target_link_libraries(cms_string_ops_compile_contract PRIVATE cms_embedded_utils)
+cms_configure_target(cms_string_ops_compile_contract)
+
+add_library(cms_string_ops_header_compile OBJECT
+    compile/test_string_ops_header.cpp
+)
+
+target_compile_features(cms_string_ops_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_string_ops_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_string_ops_header_compile)
+
+add_executable(cms_string_ops_tests
+    unit/test_string_ops.cpp
+)
+
+target_link_libraries(cms_string_ops_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_string_ops_tests PRIVATE support)
+cms_configure_target(cms_string_ops_tests)
+
+add_test(NAME cms.string_ops COMMAND cms_string_ops_tests)
+set_tests_properties(cms.string_ops PROPERTIES TIMEOUT 30)

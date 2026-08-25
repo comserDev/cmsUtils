@@ -3,9 +3,7 @@
 #include <cstddef>
 #include <cstring>
 
-#include <cms/status.h>
-#include <cms/string_buffer.h>
-#include <cms/string_view.h>
+#include <cms/string_ops.h>
 
 namespace cms {
 
@@ -83,48 +81,19 @@ public:
     }
 
     WriteResult assign(StringView value) noexcept {
-        if (value.size() > maxSize()) {
-            return {Status::no_space, 0, value.size()};
-        }
-
-        copyBytes(data_, value.data(), value.size());
-        setSize(value.size());
-        return {Status::ok, value.size(), value.size()};
+        return string::copy(value, buffer());
     }
 
     WriteResult append(StringView value) noexcept {
-        if (value.size() > remaining()) {
-            return {Status::no_space, 0, value.size()};
-        }
-
-        const std::size_t oldSize = size_;
-        copyBytes(data_ + oldSize, value.data(), value.size());
-        setSize(oldSize + value.size());
-        return {Status::ok, value.size(), value.size()};
+        return string::append(value, buffer());
     }
 
     WriteResult assignTruncated(StringView value) noexcept {
-        const std::size_t copySize =
-            value.size() < maxSize() ? value.size() : maxSize();
-        copyBytes(data_, value.data(), copySize);
-        setSize(copySize);
-
-        const Status status =
-            copySize == value.size() ? Status::ok : Status::no_space;
-        return {status, copySize, value.size()};
+        return string::copyTruncated(value, buffer());
     }
 
     WriteResult appendTruncated(StringView value) noexcept {
-        const std::size_t available = remaining();
-        const std::size_t copySize =
-            value.size() < available ? value.size() : available;
-        const std::size_t oldSize = size_;
-        copyBytes(data_ + oldSize, value.data(), copySize);
-        setSize(oldSize + copySize);
-
-        const Status status =
-            copySize == value.size() ? Status::ok : Status::no_space;
-        return {status, copySize, value.size()};
+        return string::appendTruncated(value, buffer());
     }
 
 private:
