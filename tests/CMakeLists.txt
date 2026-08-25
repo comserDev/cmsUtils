@@ -373,4 +373,142 @@ target_include_directories(cms_synchronized_queue_tests PRIVATE support)
 cms_configure_target(cms_synchronized_queue_tests)
 
 add_test(NAME cms.synchronized_queue COMMAND cms_synchronized_queue_tests)
+
+add_library(cms_log_compile_contract OBJECT
+    compile/test_log_contract.cpp
+)
+
+target_link_libraries(cms_log_compile_contract
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_compile_features(cms_log_compile_contract PRIVATE cxx_std_17)
+cms_configure_target(cms_log_compile_contract)
+
+add_library(cms_log_level_header_compile OBJECT
+    compile/test_log_level_header.cpp
+)
+
+target_include_directories(cms_log_level_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_log_level_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_log_level_header_compile)
+
+add_library(cms_log_clock_header_compile OBJECT
+    compile/test_log_clock_header.cpp
+)
+
+target_include_directories(cms_log_clock_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_log_clock_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_log_clock_header_compile)
+
+add_library(cms_log_sink_header_compile OBJECT
+    compile/test_log_sink_header.cpp
+)
+
+target_include_directories(cms_log_sink_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_log_sink_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_log_sink_header_compile)
+
+add_library(cms_log_record_header_compile OBJECT
+    compile/test_log_record_header.cpp
+)
+
+target_include_directories(cms_log_record_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_log_record_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_log_record_header_compile)
+
+add_library(cms_log_formatter_header_compile OBJECT
+    compile/test_log_formatter_header.cpp
+)
+
+target_include_directories(cms_log_formatter_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_log_formatter_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_log_formatter_header_compile)
+
+add_library(cms_log_async_logger_header_compile OBJECT
+    compile/test_log_async_logger_header.cpp
+)
+
+target_include_directories(cms_log_async_logger_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_log_async_logger_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_log_async_logger_header_compile)
+
+add_executable(cms_log_record_tests
+    unit/test_log_record.cpp
+)
+
+target_link_libraries(cms_log_record_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_log_record_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_log_record_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_log_record_tests)
+add_test(NAME cms.log_record COMMAND cms_log_record_tests)
+
+add_executable(cms_log_formatter_tests
+    unit/test_log_formatter.cpp
+)
+
+target_link_libraries(cms_log_formatter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_log_formatter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_log_formatter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_log_formatter_tests)
+add_test(NAME cms.log_formatter COMMAND cms_log_formatter_tests)
+
+add_executable(cms_async_logger_tests
+    unit/test_async_logger.cpp
+)
+
+target_link_libraries(cms_async_logger_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_async_logger_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_async_logger_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_async_logger_tests)
+add_test(NAME cms.async_logger COMMAND cms_async_logger_tests)
 set_tests_properties(cms.synchronized_queue PROPERTIES TIMEOUT 30)

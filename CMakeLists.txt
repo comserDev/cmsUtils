@@ -110,6 +110,7 @@ add_library(cms_embedded_utils STATIC
     src/cmsStringBase.cpp
     src/cmsStringUtil.cpp
     src/format.cpp
+    src/log/formatter.cpp
     src/parse.cpp
     src/string_ops.cpp
     src/utf8.cpp
