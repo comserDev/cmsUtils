@@ -12,6 +12,7 @@
 #include <cms/log/record.h>
 #include <cms/log/runtime_ansi_formatter.h>
 #include <cms/log/sink.h>
+#include <cms/log/styled_ansi_formatter.h>
 #include <cms/static_queue.h>
 #include <cms/static_string.h>
 #include <cms/status.h>
@@ -23,8 +24,65 @@ namespace log {
 
 namespace detail {
 
+template<class Formatter>
+struct IsRuntimeColorFormatter : std::false_type {};
+
+template<>
+struct IsRuntimeColorFormatter<RuntimeAnsiFormatter> : std::true_type {};
+
+template<>
+struct IsRuntimeColorFormatter<RuntimeStyledAnsiFormatter>
+    : std::true_type {};
+
+template<class Formatter>
+struct IsStyledFormatter : std::false_type {};
+
+template<>
+struct IsStyledFormatter<StyledAnsiFormatter> : std::true_type {};
+
+template<>
+struct IsStyledFormatter<RuntimeStyledAnsiFormatter> : std::true_type {};
+
+template<
+    std::size_t MessageBytes,
+    class Formatter,
+    bool Styled = IsStyledFormatter<Formatter>::value>
+struct AsyncLoggerLineStorage {
+    static_assert(
+        MessageBytes
+            <= (std::numeric_limits<std::size_t>::max)()
+                - Formatter::maxOverhead,
+        "AsyncLogger formatted line storage size overflows size_t");
+
+    static constexpr std::size_t value =
+        MessageBytes + Formatter::maxOverhead;
+};
+
+template<std::size_t MessageBytes, class Formatter>
+struct AsyncLoggerLineStorage<MessageBytes, Formatter, true> {
+    static_assert(
+        styledFormattedStorageAdjustment
+            <= (std::numeric_limits<std::size_t>::max)(),
+        "AsyncLogger styled line adjustment overflows size_t");
+    static_assert(
+        MessageBytes
+            <= ((std::numeric_limits<std::size_t>::max)()
+                - styledFormattedStorageAdjustment)
+                / maxStyledMessageExpansionFactor,
+        "AsyncLogger styled line storage size overflows size_t");
+
+    // max message는 MessageBytes - 1이고 line의 NUL까지 포함하면 4N + 40이다.
+    static constexpr std::size_t value =
+        MessageBytes * maxStyledMessageExpansionFactor
+        + styledFormattedStorageAdjustment;
+};
+
 // 기본 조합은 state를 갖지 않고 두 static policy를 직접 호출한다.
-template<class Formatter, class LevelFilter>
+template<
+    class Formatter,
+    class LevelFilter,
+    bool RuntimeColor = IsRuntimeColorFormatter<Formatter>::value,
+    bool RuntimeLevel = std::is_same<LevelFilter, RuntimeLevelFilter>::value>
 class AsyncLoggerPolicyStorage {
 protected:
     WriteResult formatRecord(
@@ -41,8 +99,8 @@ protected:
 };
 
 // Runtime color만 선택한 조합은 formatter state만 소유한다.
-template<class LevelFilter>
-class AsyncLoggerPolicyStorage<RuntimeAnsiFormatter, LevelFilter> {
+template<class Formatter, class LevelFilter>
+class AsyncLoggerPolicyStorage<Formatter, LevelFilter, true, false> {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -64,12 +122,12 @@ protected:
     }
 
 private:
-    RuntimeAnsiFormatter formatter_;
+    Formatter formatter_;
 };
 
 // Runtime level만 선택한 조합은 filter state만 소유한다.
 template<class Formatter>
-class AsyncLoggerPolicyStorage<Formatter, RuntimeLevelFilter> {
+class AsyncLoggerPolicyStorage<Formatter, RuntimeLevelFilter, false, true> {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -103,8 +161,8 @@ private:
 };
 
 // 두 runtime 기능을 함께 선택한 조합만 두 state를 모두 소유한다.
-template<>
-class AsyncLoggerPolicyStorage<RuntimeAnsiFormatter, RuntimeLevelFilter> {
+template<class Formatter>
+class AsyncLoggerPolicyStorage<Formatter, RuntimeLevelFilter, true, true> {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -141,7 +199,7 @@ protected:
     }
 
 private:
-    RuntimeAnsiFormatter formatter_;
+    Formatter formatter_;
     RuntimeLevelFilter levelFilter_;
 };
 
@@ -160,18 +218,12 @@ template<
     class LevelFilter = NoLevelFilter>
 class AsyncLogger
     : private detail::AsyncLoggerPolicyStorage<Formatter, LevelFilter> {
-    static_assert(
-        MessageBytes
-            <= (std::numeric_limits<std::size_t>::max)()
-                - Formatter::maxOverhead,
-        "AsyncLogger formatted line storage size overflows size_t");
-
     using OwnedRecord = StaticRecord<MessageBytes>;
     using RecordQueue = StaticQueue<OwnedRecord, QueueCapacity>;
     using Queue = SynchronizedQueue<RecordQueue, Mutex>;
 
     static constexpr std::size_t formattedLineStorageBytes =
-        MessageBytes + Formatter::maxOverhead;
+        detail::AsyncLoggerLineStorage<MessageBytes, Formatter>::value;
 
 public:
     AsyncLogger() = default;
@@ -261,7 +313,7 @@ public:
     template<
         class FormatterType = Formatter,
         typename std::enable_if<
-            std::is_same<Formatter, RuntimeAnsiFormatter>::value
+            detail::IsRuntimeColorFormatter<Formatter>::value
                 && std::is_same<FormatterType, Formatter>::value,
             int>::type = 0>
     void setUseColor(bool enabled) noexcept {
@@ -271,7 +323,7 @@ public:
     template<
         class FormatterType = Formatter,
         typename std::enable_if<
-            std::is_same<Formatter, RuntimeAnsiFormatter>::value
+            detail::IsRuntimeColorFormatter<Formatter>::value
                 && std::is_same<FormatterType, Formatter>::value,
             int>::type = 0>
     bool useColor() const noexcept {

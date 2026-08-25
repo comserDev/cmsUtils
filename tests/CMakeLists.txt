@@ -828,3 +828,56 @@ cms_configure_target(cms_async_logger_runtime_features_tests)
 add_test(
     NAME cms.async_logger_runtime_features
     COMMAND cms_async_logger_runtime_features_tests)
+
+add_library(cms_styled_ansi_formatter_header_compile OBJECT
+    compile/test_styled_ansi_formatter_header.cpp
+)
+
+target_include_directories(cms_styled_ansi_formatter_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_styled_ansi_formatter_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_styled_ansi_formatter_header_compile)
+
+add_executable(cms_styled_ansi_formatter_tests
+    unit/test_styled_ansi_formatter.cpp
+)
+
+target_link_libraries(cms_styled_ansi_formatter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_styled_ansi_formatter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_styled_ansi_formatter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_styled_ansi_formatter_tests)
+add_test(
+    NAME cms.styled_ansi_formatter
+    COMMAND cms_styled_ansi_formatter_tests)
+
+add_executable(cms_async_logger_styled_tests
+    unit/test_async_logger_styled.cpp
+)
+
+target_link_libraries(cms_async_logger_styled_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_async_logger_styled_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_async_logger_styled_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_async_logger_styled_tests)
+add_test(
+    NAME cms.async_logger_styled
+    COMMAND cms_async_logger_styled_tests)

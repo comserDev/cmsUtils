@@ -1,0 +1,206 @@
+#include <cstddef>
+#include <cstdio>
+#include <limits>
+
+#include <cms/log/ansi_formatter.h>
+#include <cms/log/async_logger.h>
+#include <cms/log/level_filter.h>
+#include <cms/log/runtime_ansi_formatter.h>
+#include <cms/log/styled_ansi_formatter.h>
+#include <cms/static_queue.h>
+#include <cms/static_string.h>
+#include <cms/sync/null_mutex.h>
+
+#include "test.h"
+
+namespace {
+
+struct ClockState {
+    cms::log::Timestamp current = 0;
+    std::size_t calls = 0;
+};
+
+struct CountingClock {
+    explicit CountingClock(ClockState& state) noexcept : state_(&state) {}
+
+    cms::log::Timestamp nowMilliseconds() noexcept {
+        ++state_->calls;
+        return state_->current;
+    }
+
+private:
+    ClockState* state_;
+};
+
+struct SinkState {
+    cms::StaticString<512> lines[8];
+    std::size_t writes = 0;
+    bool failed = false;
+};
+
+struct CapturingSink {
+    explicit CapturingSink(SinkState& state) noexcept : state_(&state) {}
+
+    void write(cms::StringView value) noexcept {
+        if (state_->writes >= 8
+            || state_->lines[state_->writes].assign(value).status
+                != cms::Status::ok) {
+            state_->failed = true;
+            return;
+        }
+        ++state_->writes;
+    }
+
+private:
+    SinkState* state_;
+};
+
+void checkBytes(cms::StringView actual, cms::StringView expected) {
+    CMS_TEST_REQUIRE(actual.size() == expected.size());
+    for (std::size_t index = 0; index < expected.size(); ++index) {
+        CMS_TEST_CHECK(actual[index] == expected[index]);
+    }
+}
+
+void checkLine(
+    const SinkState& state,
+    std::size_t index,
+    cms::StringView expected) {
+    CMS_TEST_REQUIRE(index < state.writes);
+    checkBytes(state.lines[index].view(), expected);
+}
+
+} // namespace
+
+int main() {
+    using Logger = cms::log::AsyncLogger<
+        32,
+        4,
+        CountingClock,
+        CapturingSink,
+        cms::sync::NullMutex,
+        cms::log::RuntimeStyledAnsiFormatter,
+        cms::log::RuntimeLevelFilter>;
+
+    ClockState clockState;
+    SinkState sinkState;
+    Logger logger{CountingClock(clockState), CapturingSink(sinkState)};
+
+    CMS_TEST_CHECK(logger.useColor());
+    CMS_TEST_CHECK(logger.minLevel() == cms::log::Level::debug);
+
+    logger.setUseColor(false);
+    clockState.current = 1;
+    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "[A] FAIL")
+        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    checkLine(sinkState, 0, "[1] [INFO] [A] FAIL\n");
+
+    logger.setUseColor(true);
+    clockState.current = 2;
+    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "[A] FAIL")
+        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    checkLine(
+        sinkState,
+        1,
+        "[2] \033[32m[INFO]\033[0m \033[32m[A]\033[0m "
+        "\033[1;91mFAIL\033[0m\n");
+
+    logger.setUseColor(false);
+    clockState.current = 3;
+    CMS_TEST_CHECK(logger.log(cms::log::Level::critical, "[NET] ERROR")
+        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    checkLine(sinkState, 2, "[3] [CRITICAL] [NET] ERROR\n");
+
+    logger.setMinLevel(cms::log::Level::warning);
+    logger.setUseColor(true);
+    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "[A] FAIL")
+        == cms::Status::ok);
+    CMS_TEST_CHECK(clockState.calls == 3);
+    CMS_TEST_CHECK(logger.pending() == 0);
+
+    clockState.current = 4;
+    CMS_TEST_CHECK(logger.log(cms::log::Level::warning, "[NET] ERROR")
+        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    checkLine(
+        sinkState,
+        3,
+        "[4] \033[33m[WARNING]\033[0m \033[95m[NET]\033[0m "
+        "\033[1;91mERROR\033[0m\n");
+    CMS_TEST_CHECK(clockState.calls == 4);
+    CMS_TEST_CHECK(!sinkState.failed);
+
+    char maximumMessage[63] = {};
+    for (std::size_t index = 0; index < sizeof(maximumMessage); index += 3) {
+        maximumMessage[index] = '[';
+        maximumMessage[index + 1] = 'x';
+        maximumMessage[index + 2] = ']';
+    }
+    using MaximumLogger = cms::log::AsyncLogger<
+        64,
+        1,
+        CountingClock,
+        CapturingSink,
+        cms::sync::NullMutex,
+        cms::log::StyledAnsiFormatter>;
+    ClockState maximumClock;
+    SinkState maximumSink;
+    maximumClock.current =
+        (std::numeric_limits<cms::log::Timestamp>::max)();
+    MaximumLogger maximumLogger{
+        CountingClock(maximumClock),
+        CapturingSink(maximumSink)};
+    CMS_TEST_CHECK(maximumLogger.log(
+        cms::log::Level::warning,
+        cms::StringView(maximumMessage, sizeof(maximumMessage)))
+        == cms::Status::ok);
+    CMS_TEST_CHECK(maximumLogger.drainOne() == cms::Status::ok);
+    CMS_TEST_REQUIRE(maximumSink.writes == 1);
+    CMS_TEST_CHECK(maximumSink.lines[0].size() == 295);
+    CMS_TEST_CHECK(maximumSink.lines[0].view()[294] == '\n');
+    CMS_TEST_CHECK(maximumSink.lines[0].cStr()[295] == '\0');
+    CMS_TEST_CHECK(!maximumSink.failed);
+
+    using PlainLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex>;
+    using AnsiLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex,
+        cms::log::AnsiFormatter>;
+    using RuntimeAnsiLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex,
+        cms::log::RuntimeAnsiFormatter>;
+    using RuntimeLevelLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex,
+        cms::log::PlainFormatter, cms::log::RuntimeLevelFilter>;
+    using StyledLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex,
+        cms::log::StyledAnsiFormatter>;
+    using RuntimeStyledLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex,
+        cms::log::RuntimeStyledAnsiFormatter>;
+    using RuntimeStyledLevelLogger = cms::log::AsyncLogger<
+        64, 8, CountingClock, CapturingSink, cms::sync::NullMutex,
+        cms::log::RuntimeStyledAnsiFormatter, cms::log::RuntimeLevelFilter>;
+    using Record = cms::log::StaticRecord<64>;
+    using Queue = cms::StaticQueue<Record, 8>;
+
+    std::printf("sizeof(existing plain logger)=%zu\n", sizeof(PlainLogger));
+    std::printf("sizeof(existing ANSI logger)=%zu\n", sizeof(AnsiLogger));
+    std::printf("sizeof(existing runtime ANSI logger)=%zu\n",
+        sizeof(RuntimeAnsiLogger));
+    std::printf("sizeof(existing runtime level logger)=%zu\n",
+        sizeof(RuntimeLevelLogger));
+    std::printf("sizeof(styled logger)=%zu\n", sizeof(StyledLogger));
+    std::printf("sizeof(runtime styled logger)=%zu\n",
+        sizeof(RuntimeStyledLogger));
+    std::printf("sizeof(runtime styled + level logger)=%zu\n",
+        sizeof(RuntimeStyledLevelLogger));
+    std::printf("sizeof(StaticRecord<64>)=%zu\n", sizeof(Record));
+    std::printf("sizeof(StaticQueue<StaticRecord<64>, 8>)=%zu\n",
+        sizeof(Queue));
+
+    return cms::test::finish();
+}

@@ -11,6 +11,7 @@
 #include <cms/log/level_filter.h>
 #include <cms/log/record.h>
 #include <cms/log/runtime_ansi_formatter.h>
+#include <cms/log/styled_ansi_formatter.h>
 #include <cms/platform/std_mutex.h>
 #include <cms/static_string.h>
 #include <cms/sync/mutex_ref.h>
@@ -202,6 +203,20 @@ using ExplicitRuntimeAnsiNoFilterLogger = cms::log::AsyncLogger<
     cms::sync::NullMutex,
     cms::log::RuntimeAnsiFormatter,
     cms::log::NoLevelFilter>;
+using StyledLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::StyledAnsiFormatter>;
+using RuntimeStyledLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::RuntimeStyledAnsiFormatter>;
 using RuntimeLevelPlainLogger = cms::log::AsyncLogger<
     16,
     4,
@@ -225,6 +240,14 @@ using RuntimeLevelRuntimeAnsiLogger = cms::log::AsyncLogger<
     TestSink,
     cms::sync::NullMutex,
     cms::log::RuntimeAnsiFormatter,
+    cms::log::RuntimeLevelFilter>;
+using RuntimeLevelRuntimeStyledLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::RuntimeStyledAnsiFormatter,
     cms::log::RuntimeLevelFilter>;
 using StdMutexRuntimeLogger = cms::log::AsyncLogger<
     16,
@@ -286,6 +309,10 @@ static_assert(cms::log::AnsiFormatter::maxOverhead == 43,
     "ANSI formatter overhead contract changed");
 static_assert(cms::log::RuntimeAnsiFormatter::maxOverhead == 43,
     "runtime ANSI formatter overhead contract changed");
+static_assert(cms::log::maxStyledMessageExpansionFactor == 4,
+    "styled message expansion contract changed");
+static_assert(cms::log::styledFormattedStorageAdjustment == 40,
+    "styled line storage adjustment changed");
 static_assert(std::is_same<Logger, ExplicitPlainLogger>::value,
     "five-parameter logger must keep the plain formatter default");
 static_assert(std::is_same<Logger, ExplicitPlainNoFilterLogger>::value,
@@ -340,6 +367,39 @@ static_assert(noexcept(
 static_assert(noexcept(
     std::declval<const cms::log::RuntimeAnsiFormatter&>().useColor()),
     "RuntimeAnsiFormatter useColor must preserve noexcept");
+static_assert(std::is_empty<cms::log::StyledAnsiFormatter>::value,
+    "StyledAnsiFormatter must remain stateless");
+static_assert(std::is_same<
+    decltype(cms::log::StyledAnsiFormatter::format(
+        std::declval<const cms::log::Record&>(),
+        cms::StringBuffer())),
+    cms::WriteResult>::value,
+    "StyledAnsiFormatter must return WriteResult");
+static_assert(noexcept(cms::log::StyledAnsiFormatter::format(
+    std::declval<const cms::log::Record&>(),
+    cms::StringBuffer())),
+    "StyledAnsiFormatter must preserve noexcept");
+static_assert(std::is_nothrow_default_constructible<
+    cms::log::RuntimeStyledAnsiFormatter>::value,
+    "RuntimeStyledAnsiFormatter construction must preserve noexcept");
+static_assert(std::is_same<
+    decltype(std::declval<const cms::log::RuntimeStyledAnsiFormatter&>()
+        .format(
+            std::declval<const cms::log::Record&>(),
+            cms::StringBuffer())),
+    cms::WriteResult>::value,
+    "RuntimeStyledAnsiFormatter must return WriteResult");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeStyledAnsiFormatter&>().format(
+        std::declval<const cms::log::Record&>(),
+        cms::StringBuffer())),
+    "RuntimeStyledAnsiFormatter format must preserve noexcept");
+static_assert(noexcept(
+    std::declval<cms::log::RuntimeStyledAnsiFormatter&>().setUseColor(true)),
+    "RuntimeStyledAnsiFormatter setUseColor must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeStyledAnsiFormatter&>().useColor()),
+    "RuntimeStyledAnsiFormatter useColor must preserve noexcept");
 static_assert(std::is_empty<cms::log::NoLevelFilter>::value,
     "NoLevelFilter must remain stateless");
 static_assert(std::is_nothrow_default_constructible<
@@ -435,6 +495,13 @@ static_assert(!std::is_move_assignable<Logger>::value,
     "logger move assignment must be deleted");
 static_assert(std::is_default_constructible<RuntimeAnsiLogger>::value,
     "runtime ANSI logger must be constructible");
+static_assert(std::is_default_constructible<StyledLogger>::value,
+    "styled logger must be constructible");
+static_assert(std::is_default_constructible<RuntimeStyledLogger>::value,
+    "runtime styled logger must be constructible");
+static_assert(std::is_default_constructible<
+    RuntimeLevelRuntimeStyledLogger>::value,
+    "runtime styled and level logger must be constructible");
 static_assert(std::is_default_constructible<StdMutexRuntimeLogger>::value,
     "StdMutex runtime ANSI logger must be constructible");
 static_assert(std::is_default_constructible<StdMutexRuntimeLevelLogger>::value,
@@ -454,6 +521,14 @@ static_assert(!std::is_move_constructible<RuntimeAnsiLogger>::value,
     "runtime ANSI logger move must be deleted");
 static_assert(!std::is_move_assignable<RuntimeAnsiLogger>::value,
     "runtime ANSI logger move assignment must be deleted");
+static_assert(!std::is_copy_constructible<RuntimeStyledLogger>::value,
+    "runtime styled logger copy must be deleted");
+static_assert(!std::is_copy_assignable<RuntimeStyledLogger>::value,
+    "runtime styled logger copy assignment must be deleted");
+static_assert(!std::is_move_constructible<RuntimeStyledLogger>::value,
+    "runtime styled logger move must be deleted");
+static_assert(!std::is_move_assignable<RuntimeStyledLogger>::value,
+    "runtime styled logger move assignment must be deleted");
 static_assert(!std::is_copy_constructible<RuntimeLevelPlainLogger>::value,
     "runtime level logger copy must be deleted");
 static_assert(!std::is_copy_assignable<RuntimeLevelPlainLogger>::value,
@@ -490,6 +565,10 @@ static_assert(!HasSetUseColor<AnsiLogger>::value,
     "always-ANSI logger must not expose runtime color state");
 static_assert(!HasUseColor<AnsiLogger>::value,
     "always-ANSI logger must not expose runtime color state");
+static_assert(!HasSetUseColor<StyledLogger>::value,
+    "always-styled logger must not expose runtime color state");
+static_assert(!HasUseColor<StyledLogger>::value,
+    "always-styled logger must not expose runtime color state");
 static_assert(HasSetUseColor<RuntimeAnsiLogger>::value,
     "runtime ANSI logger must expose setUseColor");
 static_assert(HasUseColor<RuntimeAnsiLogger>::value,
@@ -506,6 +585,16 @@ static_assert(noexcept(
 static_assert(noexcept(
     std::declval<const RuntimeAnsiLogger&>().useColor()),
     "runtime logger useColor must preserve noexcept");
+static_assert(HasSetUseColor<RuntimeStyledLogger>::value,
+    "runtime styled logger must expose setUseColor");
+static_assert(HasUseColor<RuntimeStyledLogger>::value,
+    "runtime styled logger must expose useColor");
+static_assert(noexcept(
+    std::declval<RuntimeStyledLogger&>().setUseColor(true)),
+    "runtime styled logger setUseColor must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const RuntimeStyledLogger&>().useColor()),
+    "runtime styled logger useColor must preserve noexcept");
 static_assert(!HasSetMinLevel<Logger>::value,
     "no-filter logger must not expose runtime level state");
 static_assert(!HasMinLevel<Logger>::value,
@@ -562,6 +651,12 @@ static_assert(HasSetMinLevel<RuntimeLevelRuntimeAnsiLogger>::value,
     "combined runtime logger must expose setMinLevel");
 static_assert(HasSetLoggingEnabled<RuntimeLevelRuntimeAnsiLogger>::value,
     "combined runtime logger must expose setLoggingEnabled");
+static_assert(HasSetUseColor<RuntimeLevelRuntimeStyledLogger>::value,
+    "combined runtime styled logger must expose setUseColor");
+static_assert(HasSetMinLevel<RuntimeLevelRuntimeStyledLogger>::value,
+    "combined runtime styled logger must expose setMinLevel");
+static_assert(HasSetLoggingEnabled<RuntimeLevelRuntimeStyledLogger>::value,
+    "combined runtime styled logger must expose setLoggingEnabled");
 
 static_assert(!HasQueueAccessor<Logger>::value,
     "raw Queue access must not escape the logger");
@@ -577,6 +672,8 @@ static_assert(!HasFormatterAccessor<Logger>::value,
     "raw Formatter access must not escape the logger");
 static_assert(!HasFormatterAccessor<RuntimeAnsiLogger>::value,
     "raw runtime Formatter access must not escape the logger");
+static_assert(!HasFormatterAccessor<RuntimeStyledLogger>::value,
+    "raw runtime styled Formatter access must not escape the logger");
 static_assert(!HasLevelFilterAccessor<Logger>::value,
     "raw LevelFilter access must not escape the logger");
 static_assert(!HasLevelFilterAccessor<RuntimeLevelPlainLogger>::value,
