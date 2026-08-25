@@ -1,0 +1,349 @@
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <utility>
+
+#include <cms/static_queue.h>
+
+#include "test.h"
+
+namespace {
+
+struct NonDefault {
+    NonDefault() = delete;
+
+    explicit NonDefault(int initialValue) noexcept
+        : value(initialValue) {}
+
+    int value;
+};
+
+struct MoveOnly {
+    explicit MoveOnly(int initialValue) noexcept
+        : value(initialValue) {}
+
+    MoveOnly(const MoveOnly&) = delete;
+    MoveOnly& operator=(const MoveOnly&) = delete;
+
+    MoveOnly(MoveOnly&& other) noexcept
+        : value(other.value) {
+        other.value = -1;
+    }
+
+    MoveOnly& operator=(MoveOnly&&) = delete;
+
+    int value;
+};
+
+struct TrackerCounts {
+    int direct;
+    int copies;
+    int moves;
+    int destructors;
+    int live;
+};
+
+struct Tracker {
+    Tracker(TrackerCounts& state, int initialValue) noexcept
+        : counts(&state), value(initialValue) {
+        ++counts->direct;
+        ++counts->live;
+    }
+
+    Tracker(const Tracker& other) noexcept
+        : counts(other.counts), value(other.value) {
+        ++counts->copies;
+        ++counts->live;
+    }
+
+    Tracker(Tracker&& other) noexcept
+        : counts(other.counts), value(other.value) {
+        other.value = -1;
+        ++counts->moves;
+        ++counts->live;
+    }
+
+    ~Tracker() noexcept {
+        ++counts->destructors;
+        --counts->live;
+    }
+
+    TrackerCounts* counts;
+    int value;
+};
+
+struct OrderTracker {
+    OrderTracker(
+        int initialValue,
+        int* destructionOrder,
+        std::size_t& destructionCount) noexcept
+        : value(initialValue),
+          order(destructionOrder),
+          count(&destructionCount) {}
+
+    ~OrderTracker() noexcept {
+        order[*count] = value;
+        ++(*count);
+    }
+
+    int value;
+    int* order;
+    std::size_t* count;
+};
+
+struct alignas(32) OverAligned {
+    explicit OverAligned(int initialValue) noexcept
+        : value(static_cast<std::uint32_t>(initialValue)), padding{} {}
+
+    std::uint32_t value;
+    unsigned char padding[28];
+};
+
+} // namespace
+
+int main() {
+    cms::StaticQueue<int, 3> queue;
+    CMS_TEST_CHECK(queue.size() == 0);
+    CMS_TEST_CHECK(queue.capacity() == 3);
+    CMS_TEST_CHECK(queue.empty());
+    CMS_TEST_CHECK(!queue.full());
+    CMS_TEST_CHECK(queue.front() == nullptr);
+    CMS_TEST_CHECK(queue.pop() == cms::Status::out_of_range);
+
+    CMS_TEST_CHECK(queue.push(1) == cms::Status::ok);
+    CMS_TEST_CHECK(queue.push(2) == cms::Status::ok);
+    CMS_TEST_CHECK(queue.emplace(3) == cms::Status::ok);
+    CMS_TEST_CHECK(queue.size() == 3);
+    CMS_TEST_CHECK(queue.full());
+    CMS_TEST_REQUIRE(queue.front() != nullptr);
+    CMS_TEST_CHECK(*queue.front() == 1);
+    CMS_TEST_CHECK(queue.push(4) == cms::Status::no_space);
+    CMS_TEST_CHECK(queue.size() == 3);
+    CMS_TEST_CHECK(*queue.front() == 1);
+
+    CMS_TEST_CHECK(queue.pop() == cms::Status::ok);
+    CMS_TEST_REQUIRE(queue.front() != nullptr);
+    CMS_TEST_CHECK(*queue.front() == 2);
+    CMS_TEST_CHECK(queue.push(4) == cms::Status::ok);
+
+    const cms::StaticQueue<int, 3>& constQueue = queue;
+    CMS_TEST_REQUIRE(constQueue.front() != nullptr);
+    CMS_TEST_CHECK(*constQueue.front() == 2);
+
+    CMS_TEST_CHECK(queue.pop() == cms::Status::ok);
+    CMS_TEST_REQUIRE(queue.front() != nullptr);
+    CMS_TEST_CHECK(*queue.front() == 3);
+    CMS_TEST_CHECK(queue.pop() == cms::Status::ok);
+    CMS_TEST_REQUIRE(queue.front() != nullptr);
+    CMS_TEST_CHECK(*queue.front() == 4);
+    CMS_TEST_CHECK(queue.pop() == cms::Status::ok);
+    CMS_TEST_CHECK(queue.empty());
+    CMS_TEST_CHECK(queue.front() == nullptr);
+
+    cms::StaticQueue<int, 1> single;
+    CMS_TEST_CHECK(single.empty());
+    CMS_TEST_CHECK(single.push(10) == cms::Status::ok);
+    CMS_TEST_CHECK(single.full());
+    CMS_TEST_CHECK(single.push(20) == cms::Status::no_space);
+    CMS_TEST_REQUIRE(single.front() != nullptr);
+    CMS_TEST_CHECK(*single.front() == 10);
+    CMS_TEST_CHECK(single.pop() == cms::Status::ok);
+    CMS_TEST_CHECK(single.empty());
+    CMS_TEST_CHECK(single.push(30) == cms::Status::ok);
+    CMS_TEST_REQUIRE(single.front() != nullptr);
+    CMS_TEST_CHECK(*single.front() == 30);
+    CMS_TEST_CHECK(single.pop() == cms::Status::ok);
+    CMS_TEST_CHECK(single.push(40) == cms::Status::ok);
+    CMS_TEST_REQUIRE(single.front() != nullptr);
+    CMS_TEST_CHECK(*single.front() == 40);
+
+    cms::StaticQueue<NonDefault, 3> nonDefault;
+    CMS_TEST_CHECK(nonDefault.empty());
+    CMS_TEST_CHECK(nonDefault.emplace(11) == cms::Status::ok);
+    CMS_TEST_REQUIRE(nonDefault.front() != nullptr);
+    CMS_TEST_CHECK(nonDefault.front()->value == 11);
+
+    cms::StaticQueue<MoveOnly, 3> moveOnly;
+    MoveOnly source(21);
+    CMS_TEST_CHECK(moveOnly.push(std::move(source)) == cms::Status::ok);
+    CMS_TEST_CHECK(source.value == -1);
+    CMS_TEST_REQUIRE(moveOnly.front() != nullptr);
+    CMS_TEST_CHECK(moveOnly.front()->value == 21);
+    CMS_TEST_CHECK(moveOnly.emplace(22) == cms::Status::ok);
+    CMS_TEST_CHECK(moveOnly.pop() == cms::Status::ok);
+    CMS_TEST_REQUIRE(moveOnly.front() != nullptr);
+    CMS_TEST_CHECK(moveOnly.front()->value == 22);
+
+    TrackerCounts lifetime{0, 0, 0, 0, 0};
+    {
+        cms::StaticQueue<Tracker, 3> tracked;
+        CMS_TEST_CHECK(lifetime.direct == 0);
+        CMS_TEST_CHECK(lifetime.live == 0);
+        CMS_TEST_CHECK(tracked.emplace(lifetime, 1) == cms::Status::ok);
+        CMS_TEST_CHECK(tracked.emplace(lifetime, 2) == cms::Status::ok);
+        CMS_TEST_CHECK(tracked.emplace(lifetime, 3) == cms::Status::ok);
+        CMS_TEST_CHECK(lifetime.direct == 3);
+        CMS_TEST_CHECK(lifetime.live == 3);
+        CMS_TEST_CHECK(tracked.pop() == cms::Status::ok);
+        CMS_TEST_CHECK(lifetime.destructors == 1);
+        CMS_TEST_CHECK(lifetime.live == 2);
+        tracked.clear();
+        CMS_TEST_CHECK(lifetime.destructors == 3);
+        CMS_TEST_CHECK(lifetime.live == 0);
+        CMS_TEST_CHECK(tracked.empty());
+        CMS_TEST_CHECK(!tracked.full());
+        CMS_TEST_CHECK(tracked.front() == nullptr);
+        CMS_TEST_CHECK(tracked.pop() == cms::Status::out_of_range);
+        CMS_TEST_CHECK(lifetime.destructors == 3);
+    }
+    CMS_TEST_CHECK(lifetime.destructors == 3);
+    CMS_TEST_CHECK(lifetime.live == 0);
+
+    TrackerCounts copyMove{0, 0, 0, 0, 0};
+    {
+        Tracker sourceTracker(copyMove, 7);
+        cms::StaticQueue<Tracker, 2> tracked;
+        CMS_TEST_CHECK(tracked.push(sourceTracker) == cms::Status::ok);
+        CMS_TEST_CHECK(copyMove.copies == 1);
+        CMS_TEST_REQUIRE(tracked.front() != nullptr);
+        CMS_TEST_CHECK(tracked.front()->value == 7);
+        CMS_TEST_CHECK(tracked.pop() == cms::Status::ok);
+        CMS_TEST_CHECK(tracked.push(std::move(sourceTracker)) == cms::Status::ok);
+        CMS_TEST_CHECK(copyMove.moves == 1);
+        CMS_TEST_REQUIRE(tracked.front() != nullptr);
+        CMS_TEST_CHECK(tracked.front()->value == 7);
+    }
+    CMS_TEST_CHECK(copyMove.live == 0);
+    CMS_TEST_CHECK(copyMove.destructors == 3);
+
+    TrackerCounts fullCounts{0, 0, 0, 0, 0};
+    {
+        cms::StaticQueue<Tracker, 1> fullQueue;
+        CMS_TEST_CHECK(fullQueue.emplace(fullCounts, 1) == cms::Status::ok);
+        Tracker fullSource(fullCounts, 2);
+        const int directBefore = fullCounts.direct;
+        const int copiesBefore = fullCounts.copies;
+        const int movesBefore = fullCounts.moves;
+        const int destructorsBefore = fullCounts.destructors;
+        const int liveBefore = fullCounts.live;
+
+        CMS_TEST_CHECK(fullQueue.push(fullSource) == cms::Status::no_space);
+        CMS_TEST_CHECK(
+            fullQueue.push(std::move(fullSource)) == cms::Status::no_space);
+        CMS_TEST_CHECK(
+            fullQueue.emplace(fullCounts, 3) == cms::Status::no_space);
+        CMS_TEST_CHECK(fullCounts.direct == directBefore);
+        CMS_TEST_CHECK(fullCounts.copies == copiesBefore);
+        CMS_TEST_CHECK(fullCounts.moves == movesBefore);
+        CMS_TEST_CHECK(fullCounts.destructors == destructorsBefore);
+        CMS_TEST_CHECK(fullCounts.live == liveBefore);
+        CMS_TEST_REQUIRE(fullQueue.front() != nullptr);
+        CMS_TEST_CHECK(fullQueue.front()->value == 1);
+    }
+    CMS_TEST_CHECK(fullCounts.live == 0);
+    CMS_TEST_CHECK(fullCounts.destructors == 2);
+
+    TrackerCounts destructorCounts{0, 0, 0, 0, 0};
+    {
+        cms::StaticQueue<Tracker, 3> tracked;
+        CMS_TEST_CHECK(tracked.emplace(destructorCounts, 1) == cms::Status::ok);
+        CMS_TEST_CHECK(tracked.emplace(destructorCounts, 2) == cms::Status::ok);
+        CMS_TEST_CHECK(destructorCounts.live == 2);
+    }
+    CMS_TEST_CHECK(destructorCounts.live == 0);
+    CMS_TEST_CHECK(destructorCounts.destructors == 2);
+
+    int destructionOrder[4] = {};
+    std::size_t destructionCount = 0;
+    {
+        cms::StaticQueue<OrderTracker, 3> orderedDestruction;
+        CMS_TEST_CHECK(
+            orderedDestruction.emplace(1, destructionOrder, destructionCount)
+            == cms::Status::ok);
+        CMS_TEST_CHECK(
+            orderedDestruction.emplace(2, destructionOrder, destructionCount)
+            == cms::Status::ok);
+        CMS_TEST_CHECK(
+            orderedDestruction.emplace(3, destructionOrder, destructionCount)
+            == cms::Status::ok);
+        CMS_TEST_CHECK(orderedDestruction.pop() == cms::Status::ok);
+        CMS_TEST_CHECK(destructionCount == 1);
+        CMS_TEST_CHECK(destructionOrder[0] == 1);
+        CMS_TEST_CHECK(
+            orderedDestruction.emplace(4, destructionOrder, destructionCount)
+            == cms::Status::ok);
+        orderedDestruction.clear();
+        CMS_TEST_CHECK(destructionCount == 4);
+        CMS_TEST_CHECK(destructionOrder[0] == 1);
+        CMS_TEST_CHECK(destructionOrder[1] == 2);
+        CMS_TEST_CHECK(destructionOrder[2] == 3);
+        CMS_TEST_CHECK(destructionOrder[3] == 4);
+    }
+    CMS_TEST_CHECK(destructionCount == 4);
+
+    cms::StaticQueue<int, 3> reusable;
+    CMS_TEST_CHECK(reusable.emplace(1) == cms::Status::ok);
+    CMS_TEST_CHECK(reusable.emplace(2) == cms::Status::ok);
+    reusable.clear();
+    CMS_TEST_CHECK(reusable.size() == 0);
+    CMS_TEST_CHECK(reusable.empty());
+    CMS_TEST_CHECK(reusable.front() == nullptr);
+    CMS_TEST_CHECK(reusable.emplace(10) == cms::Status::ok);
+    CMS_TEST_REQUIRE(reusable.front() != nullptr);
+    CMS_TEST_CHECK(*reusable.front() == 10);
+    CMS_TEST_CHECK(reusable.pop() == cms::Status::ok);
+    CMS_TEST_CHECK(reusable.empty());
+
+    cms::StaticQueue<NonDefault, 2> stable;
+    CMS_TEST_CHECK(stable.emplace(31) == cms::Status::ok);
+    NonDefault* first = stable.front();
+    CMS_TEST_REQUIRE(first != nullptr);
+    CMS_TEST_CHECK(first->value == 31);
+    CMS_TEST_CHECK(stable.emplace(32) == cms::Status::ok);
+    CMS_TEST_CHECK(stable.front() == first);
+    CMS_TEST_CHECK(first->value == 31);
+
+    cms::StaticQueue<OverAligned, 2> aligned;
+    CMS_TEST_CHECK(aligned.emplace(41) == cms::Status::ok);
+    CMS_TEST_REQUIRE(aligned.front() != nullptr);
+    const std::uintptr_t address =
+        reinterpret_cast<std::uintptr_t>(aligned.front());
+    CMS_TEST_CHECK(address % alignof(OverAligned) == 0);
+    CMS_TEST_CHECK(aligned.front()->value == 41);
+
+    cms::StaticQueue<int, 7> cycles;
+    for (int value = 0; value < 7; ++value) {
+        CMS_TEST_REQUIRE(cycles.push(value) == cms::Status::ok);
+    }
+    int expected = 0;
+    for (int value = 7; value < 4096; ++value) {
+        CMS_TEST_REQUIRE(cycles.front() != nullptr);
+        CMS_TEST_CHECK(*cycles.front() == expected);
+        CMS_TEST_REQUIRE(cycles.pop() == cms::Status::ok);
+        CMS_TEST_REQUIRE(cycles.push(value) == cms::Status::ok);
+        ++expected;
+    }
+    while (expected < 4096) {
+        CMS_TEST_REQUIRE(cycles.front() != nullptr);
+        CMS_TEST_CHECK(*cycles.front() == expected);
+        CMS_TEST_REQUIRE(cycles.pop() == cms::Status::ok);
+        ++expected;
+    }
+    CMS_TEST_CHECK(cycles.empty());
+    CMS_TEST_CHECK(cycles.size() == 0);
+
+    std::printf(
+        "sizeof(cms::StaticQueue<std::uint8_t, 1>)=%zu\n",
+        sizeof(cms::StaticQueue<std::uint8_t, 1>));
+    std::printf(
+        "sizeof(cms::StaticQueue<std::uint8_t, 8>)=%zu\n",
+        sizeof(cms::StaticQueue<std::uint8_t, 8>));
+    std::printf(
+        "sizeof(cms::StaticQueue<std::uint8_t, 255>)=%zu\n",
+        sizeof(cms::StaticQueue<std::uint8_t, 255>));
+    std::printf(
+        "sizeof(cms::StaticQueue<std::uint8_t, 256>)=%zu\n",
+        sizeof(cms::StaticQueue<std::uint8_t, 256>));
+
+    return cms::test::finish();
+}

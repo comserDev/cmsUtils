@@ -277,3 +277,33 @@ cms_configure_target(cms_parse_tests)
 
 add_test(NAME cms.parse COMMAND cms_parse_tests)
 set_tests_properties(cms.parse PROPERTIES TIMEOUT 30)
+
+add_library(cms_static_queue_compile_contract OBJECT
+    compile/test_static_queue_contract.cpp
+)
+
+target_link_libraries(cms_static_queue_compile_contract PRIVATE
+    cms_embedded_utils
+)
+cms_configure_target(cms_static_queue_compile_contract)
+
+add_library(cms_static_queue_header_compile OBJECT
+    compile/test_static_queue_header.cpp
+)
+
+target_compile_features(cms_static_queue_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_static_queue_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_static_queue_header_compile)
+
+add_executable(cms_static_queue_tests
+    unit/test_static_queue.cpp
+)
+
+target_link_libraries(cms_static_queue_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_static_queue_tests PRIVATE support)
+cms_configure_target(cms_static_queue_tests)
+
+add_test(NAME cms.static_queue COMMAND cms_static_queue_tests)
+set_tests_properties(cms.static_queue PROPERTIES TIMEOUT 30)
