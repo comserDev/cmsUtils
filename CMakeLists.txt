@@ -11,7 +11,11 @@ function(cms_configure_target target_name)
     )
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(${target_name} PRIVATE /W4 /permissive-)
+        target_compile_options(${target_name} PRIVATE
+            /W4
+            /permissive-
+            /source-charset:utf-8
+        )
 
         if(CMS_ENABLE_ADDRESS_SANITIZER)
             target_compile_options(${target_name} PRIVATE /fsanitize=address)
@@ -105,6 +109,8 @@ add_library(cms_embedded_utils STATIC
     src/cmsAsyncLogger.cpp
     src/cmsStringBase.cpp
     src/cmsStringUtil.cpp
+    src/format.cpp
+    src/parse.cpp
     src/string_ops.cpp
     src/utf8.cpp
 )
