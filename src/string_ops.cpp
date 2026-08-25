@@ -103,6 +103,7 @@ std::size_t find(
 
     const std::size_t lastStart = value.size() - needle.size();
     std::size_t position = start;
+    // lastStart에서 먼저 멈춰 SIZE_MAX까지 increment되는 경우를 만들지 않는다.
     while (true) {
         if (bytesEqual(value, position, needle)) {
             return position;
@@ -218,6 +219,8 @@ WriteResult replaceAll(
 
     std::size_t required = 0;
     std::size_t inputOffset = 0;
+    // 첫 pass에서는 non-overlapping match를 세고 전체 결과 크기만 계산한다.
+    // 이 단계가 끝날 때까지 output은 전혀 건드리지 않는다.
     while (inputOffset < input.size()) {
         const bool matches =
             needle.size() <= input.size() - inputOffset
@@ -235,6 +238,7 @@ WriteResult replaceAll(
 
     inputOffset = 0;
     std::size_t outputOffset = 0;
+    // capacity가 충분하다는 것이 확인된 뒤 두 번째 pass에서 실제로 기록한다.
     while (inputOffset < input.size()) {
         const bool matches =
             needle.size() <= input.size() - inputOffset

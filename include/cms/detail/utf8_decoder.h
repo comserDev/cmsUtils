@@ -16,6 +16,8 @@ inline bool isContinuation(unsigned char byte) noexcept {
     return byte >= 0x80U && byte <= 0xBFU;
 }
 
+// 잘못된 sequence에서는 byte 하나만 소비해 다음 호출이 바로 다음 byte에서
+// 다시 동기화할 수 있게 한다.
 inline cms::utf8::DecodeResult invalid() noexcept {
     return {Status::invalid_utf8, static_cast<char32_t>(0xFFFDU), 1};
 }
@@ -57,6 +59,7 @@ inline cms::utf8::DecodeResult decodeNext(
 
         const unsigned char second = byteAt(input, offset + 1);
         const unsigned char third = byteAt(input, offset + 2);
+        // E0의 overlong encoding과 ED의 surrogate 범위를 second byte에서 막는다.
         const bool secondValid =
             (first == 0xE0U && second >= 0xA0U && second <= 0xBFU)
             || (first >= 0xE1U && first <= 0xECU
@@ -84,6 +87,7 @@ inline cms::utf8::DecodeResult decodeNext(
         const unsigned char second = byteAt(input, offset + 1);
         const unsigned char third = byteAt(input, offset + 2);
         const unsigned char fourth = byteAt(input, offset + 3);
+        // F0의 overlong encoding과 U+10FFFF를 넘는 F4 범위를 걸러낸다.
         const bool secondValid =
             (first == 0xF0U && second >= 0x90U && second <= 0xBFU)
             || (first >= 0xF1U && first <= 0xF3U

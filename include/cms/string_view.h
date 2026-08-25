@@ -4,20 +4,20 @@
 
 namespace cms {
 
-// Read-only, non-owning byte view. NUL termination is not guaranteed and the
-// terminating NUL of a string literal is not part of the view.
+// 읽기 전용 non-owning byte view다. NUL 종료를 보장하지 않으며 문자열
+// literal의 terminating NUL은 view에 포함하지 않는다.
 class StringView {
 public:
     constexpr StringView() noexcept
         : data_(nullptr), size_(0) {}
 
-    // A null pointer is canonicalized to an empty view. operator[] requires
-    // index < size(); it intentionally performs no bounds checking.
+    // nullptr은 크기와 관계없이 빈 view로 canonicalize한다. operator[]의
+    // precondition은 index < size()이며 의도적으로 bounds check를 하지 않는다.
     constexpr StringView(const char* data, std::size_t size) noexcept
         : data_(data), size_(data != nullptr ? size : 0) {}
 
-    // Convenience construction from an array uses bounded C-string
-    // semantics. An array without a NUL byte consumes all N bytes.
+    // 배열 convenience constructor는 N 범위 안에서 첫 NUL까지만 취하는
+    // bounded C-string semantics를 사용한다. NUL이 없으면 N byte 전체를 본다.
     template<std::size_t N>
     constexpr StringView(const char (&array)[N]) noexcept
         : data_(array), size_(0) {
@@ -42,6 +42,8 @@ public:
         return data_[index];
     }
 
+    // byte offset 기준 subview를 만든다. count가 남은 길이보다 크면 끝까지
+    // clamp하며 offset이 범위를 벗어나면 빈 view를 반환한다.
     constexpr StringView substr(
         std::size_t offset,
         std::size_t count) const noexcept {

@@ -98,6 +98,8 @@ WriteResult substring(
         ++codePointIndex;
     }
 
+    // 선택 구간과 관계없이 input 전체를 먼저 decode해 잘못된 UTF-8에서
+    // destination이 부분적으로 바뀌는 일을 막는다.
     if (!startFound) {
         if (firstCodePoint != codePointIndex) {
             return failure(Status::out_of_range);
@@ -107,8 +109,7 @@ WriteResult substring(
         endByte = input.size();
     }
 
-    // Both offsets are ordered positions bounded by input.size(), so this
-    // subtraction cannot overflow.
+    // 두 offset은 input.size() 안에서 순서가 보장되므로 뺄셈이 underflow하지 않는다.
     const std::size_t required = endByte - startByte;
     if (required > output.maxSize()) {
         return {Status::no_space, 0, required};
@@ -133,6 +134,7 @@ WriteResult sanitize(StringView input, StringBuffer output) noexcept {
 
     std::size_t required = 0;
     std::size_t offset = 0;
+    // 첫 pass에서 replacement 확장까지 포함한 전체 크기를 계산한다.
     while (offset < input.size()) {
         const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
         const std::size_t increment =
@@ -152,6 +154,7 @@ WriteResult sanitize(StringView input, StringBuffer output) noexcept {
 
     offset = 0;
     std::size_t writeOffset = 0;
+    // 공간이 충분한 경우에만 두 번째 pass에서 destination을 채운다.
     while (offset < input.size()) {
         const DecodeResult decoded = detail::utf8::decodeNext(input, offset);
         if (decoded.status == Status::ok) {
