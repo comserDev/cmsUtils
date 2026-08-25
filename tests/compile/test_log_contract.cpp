@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <cms/log/ansi_formatter.h>
 #include <cms/log/async_logger.h>
 #include <cms/log/clock.h>
 #include <cms/log/formatter.h>
@@ -81,6 +82,20 @@ struct HasFrontAccessor<
 using StaticRecord = cms::log::StaticRecord<16>;
 using Logger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, cms::sync::NullMutex>;
+using ExplicitPlainLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::PlainFormatter>;
+using AnsiLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::AnsiFormatter>;
 using NonMovableLogger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, NonMovableMutex>;
 using MutexRef = cms::sync::MutexRef<ExternalMutex>;
@@ -100,6 +115,34 @@ static_assert(std::is_same<cms::log::Timestamp, std::uint64_t>::value,
     "Timestamp must use uint64_t");
 static_assert(cms::log::maxFormattedRecordOverhead == 35,
     "formatted overhead contract changed");
+static_assert(cms::log::PlainFormatter::maxOverhead == 35,
+    "plain formatter overhead contract changed");
+static_assert(cms::log::AnsiFormatter::maxOverhead == 43,
+    "ANSI formatter overhead contract changed");
+static_assert(std::is_same<Logger, ExplicitPlainLogger>::value,
+    "five-parameter logger must keep the plain formatter default");
+static_assert(!std::is_same<Logger, AnsiLogger>::value,
+    "ANSI formatter must require explicit selection");
+static_assert(std::is_same<
+    decltype(cms::log::PlainFormatter::format(
+        std::declval<const cms::log::Record&>(),
+        cms::StringBuffer())),
+    cms::WriteResult>::value,
+    "PlainFormatter must return WriteResult");
+static_assert(std::is_same<
+    decltype(cms::log::AnsiFormatter::format(
+        std::declval<const cms::log::Record&>(),
+        cms::StringBuffer())),
+    cms::WriteResult>::value,
+    "AnsiFormatter must return WriteResult");
+static_assert(noexcept(cms::log::PlainFormatter::format(
+    std::declval<const cms::log::Record&>(),
+    cms::StringBuffer())),
+    "PlainFormatter must preserve noexcept");
+static_assert(noexcept(cms::log::AnsiFormatter::format(
+    std::declval<const cms::log::Record&>(),
+    cms::StringBuffer())),
+    "AnsiFormatter must preserve noexcept");
 
 static_assert(recordContract.messageCapacity() == 16,
     "message capacity includes the terminating NUL");

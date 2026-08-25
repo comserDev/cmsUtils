@@ -27,12 +27,13 @@ template<
     std::size_t QueueCapacity,
     class Clock,
     class Sink,
-    class Mutex>
+    class Mutex,
+    class Formatter = PlainFormatter>
 class AsyncLogger {
     static_assert(
         MessageBytes
             <= (std::numeric_limits<std::size_t>::max)()
-                - maxFormattedRecordOverhead,
+                - Formatter::maxOverhead,
         "AsyncLogger formatted line storage size overflows size_t");
 
     using OwnedRecord = StaticRecord<MessageBytes>;
@@ -40,7 +41,7 @@ class AsyncLogger {
     using Queue = SynchronizedQueue<RecordQueue, Mutex>;
 
     static constexpr std::size_t formattedLineStorageBytes =
-        MessageBytes + maxFormattedRecordOverhead;
+        MessageBytes + Formatter::maxOverhead;
 
 public:
     AsyncLogger() = default;
@@ -110,7 +111,8 @@ public:
         }
 
         StaticString<formattedLineStorageBytes> line;
-        const WriteResult formatted = format(record.view(), line.buffer());
+        const WriteResult formatted =
+            Formatter::format(record.view(), line.buffer());
         // dequeue가 끝난 뒤 format하므로 실패해도 record는 이미 제거된 상태다.
         if (formatted.status != Status::ok) {
             return formatted.status;

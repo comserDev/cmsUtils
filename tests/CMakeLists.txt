@@ -512,3 +512,193 @@ target_compile_features(cms_async_logger_tests PRIVATE cxx_std_17)
 cms_configure_target(cms_async_logger_tests)
 add_test(NAME cms.async_logger COMMAND cms_async_logger_tests)
 set_tests_properties(cms.synchronized_queue PROPERTIES TIMEOUT 30)
+
+add_library(cms_platform_compile_contract OBJECT
+    compile/test_platform_contract.cpp
+)
+
+target_link_libraries(cms_platform_compile_contract
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_compile_features(cms_platform_compile_contract PRIVATE cxx_std_17)
+cms_configure_target(cms_platform_compile_contract)
+
+add_library(cms_embedded_platform_compile_contract OBJECT
+    compile/test_embedded_platform_contract.cpp
+)
+
+target_include_directories(cms_embedded_platform_compile_contract
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/fakes/arduino
+        ${CMAKE_CURRENT_SOURCE_DIR}/fakes/freertos
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_embedded_platform_compile_contract PRIVATE cxx_std_17)
+cms_configure_target(cms_embedded_platform_compile_contract)
+
+add_library(cms_ansi_formatter_header_compile OBJECT
+    compile/test_ansi_formatter_header.cpp
+)
+
+target_include_directories(cms_ansi_formatter_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_ansi_formatter_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_ansi_formatter_header_compile)
+
+add_library(cms_std_mutex_header_compile OBJECT
+    compile/test_std_mutex_header.cpp
+)
+
+target_include_directories(cms_std_mutex_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_std_mutex_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_std_mutex_header_compile)
+
+add_library(cms_steady_clock_header_compile OBJECT
+    compile/test_steady_clock_header.cpp
+)
+
+target_include_directories(cms_steady_clock_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_steady_clock_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_steady_clock_header_compile)
+
+add_library(cms_stdout_sink_header_compile OBJECT
+    compile/test_stdout_sink_header.cpp
+)
+
+target_include_directories(cms_stdout_sink_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_stdout_sink_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_stdout_sink_header_compile)
+
+add_library(cms_arduino_serial_sink_header_compile OBJECT
+    compile/test_arduino_serial_sink_header.cpp
+)
+
+target_include_directories(cms_arduino_serial_sink_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_arduino_serial_sink_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_arduino_serial_sink_header_compile)
+
+add_library(cms_arduino_millis_clock_header_compile OBJECT
+    compile/test_arduino_millis_clock_header.cpp
+)
+
+target_include_directories(cms_arduino_millis_clock_header_compile
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/fakes/arduino
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_arduino_millis_clock_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_arduino_millis_clock_header_compile)
+
+add_library(cms_freertos_static_mutex_header_compile OBJECT
+    compile/test_freertos_static_mutex_header.cpp
+)
+
+target_include_directories(cms_freertos_static_mutex_header_compile
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/fakes/freertos
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_freertos_static_mutex_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_freertos_static_mutex_header_compile)
+
+add_executable(cms_ansi_formatter_tests
+    unit/test_ansi_formatter.cpp
+)
+
+target_link_libraries(cms_ansi_formatter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_ansi_formatter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_ansi_formatter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_ansi_formatter_tests)
+add_test(NAME cms.ansi_formatter COMMAND cms_ansi_formatter_tests)
+
+add_executable(cms_platform_adapter_tests
+    unit/test_platform_adapters.cpp
+)
+
+target_link_libraries(cms_platform_adapter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_platform_adapter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_platform_adapter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_platform_adapter_tests)
+add_test(NAME cms.platform_adapters COMMAND cms_platform_adapter_tests)
+
+add_executable(cms_embedded_adapter_tests
+    unit/test_embedded_adapters.cpp
+)
+
+target_link_libraries(cms_embedded_adapter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_embedded_adapter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/fakes/arduino
+        ${CMAKE_CURRENT_SOURCE_DIR}/fakes/freertos
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_embedded_adapter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_embedded_adapter_tests)
+add_test(NAME cms.embedded_adapters COMMAND cms_embedded_adapter_tests)
+
+add_executable(cms_async_logger_ansi_tests
+    unit/test_async_logger_ansi.cpp
+)
+
+target_link_libraries(cms_async_logger_ansi_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_async_logger_ansi_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_async_logger_ansi_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_async_logger_ansi_tests)
+add_test(NAME cms.async_logger_ansi COMMAND cms_async_logger_ansi_tests)

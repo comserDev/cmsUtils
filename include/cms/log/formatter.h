@@ -19,5 +19,16 @@ StringView levelName(Level level) noexcept;
 // "[timestamp] [LEVEL] message\n" 전체를 transactional하게 기록한다.
 WriteResult format(const Record& record, StringBuffer output) noexcept;
 
+struct PlainFormatter {
+    static constexpr std::size_t maxOverhead =
+        maxFormattedRecordOverhead;
+
+    static WriteResult format(
+        const Record& record,
+        StringBuffer output) noexcept {
+        return cms::log::format(record, output);
+    }
+};
+
 } // namespace log
 } // namespace cms
