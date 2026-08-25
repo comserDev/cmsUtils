@@ -307,3 +307,70 @@ cms_configure_target(cms_static_queue_tests)
 
 add_test(NAME cms.static_queue COMMAND cms_static_queue_tests)
 set_tests_properties(cms.static_queue PROPERTIES TIMEOUT 30)
+
+add_library(cms_sync_compile_contract OBJECT
+    compile/test_sync_contract.cpp
+)
+
+target_link_libraries(cms_sync_compile_contract PRIVATE cms_embedded_utils)
+cms_configure_target(cms_sync_compile_contract)
+
+add_library(cms_synchronized_queue_compile_contract OBJECT
+    compile/test_synchronized_queue_contract.cpp
+)
+
+target_link_libraries(cms_synchronized_queue_compile_contract PRIVATE
+    cms_embedded_utils
+)
+cms_configure_target(cms_synchronized_queue_compile_contract)
+
+add_library(cms_lock_guard_header_compile OBJECT
+    compile/test_lock_guard_header.cpp
+)
+
+target_compile_features(cms_lock_guard_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_lock_guard_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_lock_guard_header_compile)
+
+add_library(cms_null_mutex_header_compile OBJECT
+    compile/test_null_mutex_header.cpp
+)
+
+target_compile_features(cms_null_mutex_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_null_mutex_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_null_mutex_header_compile)
+
+add_library(cms_mutex_ref_header_compile OBJECT
+    compile/test_mutex_ref_header.cpp
+)
+
+target_compile_features(cms_mutex_ref_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_mutex_ref_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_mutex_ref_header_compile)
+
+add_library(cms_synchronized_queue_header_compile OBJECT
+    compile/test_synchronized_queue_header.cpp
+)
+
+target_compile_features(cms_synchronized_queue_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_synchronized_queue_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_synchronized_queue_header_compile)
+
+add_executable(cms_synchronized_queue_tests
+    unit/test_synchronized_queue.cpp
+)
+
+target_link_libraries(cms_synchronized_queue_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_synchronized_queue_tests PRIVATE support)
+cms_configure_target(cms_synchronized_queue_tests)
+
+add_test(NAME cms.synchronized_queue COMMAND cms_synchronized_queue_tests)
+set_tests_properties(cms.synchronized_queue PROPERTIES TIMEOUT 30)
