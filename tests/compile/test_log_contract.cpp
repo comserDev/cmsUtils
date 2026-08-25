@@ -8,6 +8,7 @@
 #include <cms/log/clock.h>
 #include <cms/log/formatter.h>
 #include <cms/log/level.h>
+#include <cms/log/level_filter.h>
 #include <cms/log/record.h>
 #include <cms/log/runtime_ansi_formatter.h>
 #include <cms/platform/std_mutex.h>
@@ -108,6 +109,51 @@ struct HasFormatterAccessor<
     std::void_t<decltype(std::declval<Type&>().formatter())>>
     : std::true_type {};
 
+template<class Type, class = void>
+struct HasSetMinLevel : std::false_type {};
+
+template<class Type>
+struct HasSetMinLevel<
+    Type,
+    std::void_t<decltype(std::declval<Type&>().setMinLevel(
+        cms::log::Level::warning))>> : std::true_type {};
+
+template<class Type, class = void>
+struct HasMinLevel : std::false_type {};
+
+template<class Type>
+struct HasMinLevel<
+    Type,
+    std::void_t<decltype(std::declval<const Type&>().minLevel())>>
+    : std::true_type {};
+
+template<class Type, class = void>
+struct HasLevelFilterAccessor : std::false_type {};
+
+template<class Type>
+struct HasLevelFilterAccessor<
+    Type,
+    std::void_t<decltype(std::declval<Type&>().levelFilter())>>
+    : std::true_type {};
+
+template<class Type, class = void>
+struct HasSetLoggingEnabled : std::false_type {};
+
+template<class Type>
+struct HasSetLoggingEnabled<
+    Type,
+    std::void_t<decltype(std::declval<Type&>().setLoggingEnabled(true))>>
+    : std::true_type {};
+
+template<class Type, class = void>
+struct HasLoggingEnabled : std::false_type {};
+
+template<class Type>
+struct HasLoggingEnabled<
+    Type,
+    std::void_t<decltype(std::declval<const Type&>().loggingEnabled())>>
+    : std::true_type {};
+
 using StaticRecord = cms::log::StaticRecord<16>;
 using Logger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, cms::sync::NullMutex>;
@@ -118,6 +164,14 @@ using ExplicitPlainLogger = cms::log::AsyncLogger<
     TestSink,
     cms::sync::NullMutex,
     cms::log::PlainFormatter>;
+using ExplicitPlainNoFilterLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::PlainFormatter,
+    cms::log::NoLevelFilter>;
 using AnsiLogger = cms::log::AsyncLogger<
     16,
     4,
@@ -125,6 +179,14 @@ using AnsiLogger = cms::log::AsyncLogger<
     TestSink,
     cms::sync::NullMutex,
     cms::log::AnsiFormatter>;
+using ExplicitAnsiNoFilterLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::AnsiFormatter,
+    cms::log::NoLevelFilter>;
 using RuntimeAnsiLogger = cms::log::AsyncLogger<
     16,
     4,
@@ -132,6 +194,38 @@ using RuntimeAnsiLogger = cms::log::AsyncLogger<
     TestSink,
     cms::sync::NullMutex,
     cms::log::RuntimeAnsiFormatter>;
+using ExplicitRuntimeAnsiNoFilterLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::RuntimeAnsiFormatter,
+    cms::log::NoLevelFilter>;
+using RuntimeLevelPlainLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::PlainFormatter,
+    cms::log::RuntimeLevelFilter>;
+using RuntimeLevelAnsiLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::AnsiFormatter,
+    cms::log::RuntimeLevelFilter>;
+using RuntimeLevelRuntimeAnsiLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::RuntimeAnsiFormatter,
+    cms::log::RuntimeLevelFilter>;
 using StdMutexRuntimeLogger = cms::log::AsyncLogger<
     16,
     4,
@@ -139,8 +233,24 @@ using StdMutexRuntimeLogger = cms::log::AsyncLogger<
     TestSink,
     cms::platform::StdMutex,
     cms::log::RuntimeAnsiFormatter>;
+using StdMutexRuntimeLevelLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::platform::StdMutex,
+    cms::log::PlainFormatter,
+    cms::log::RuntimeLevelFilter>;
 using NonMovableLogger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, NonMovableMutex>;
+using NonMovableRuntimeLevelLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    NonMovableMutex,
+    cms::log::PlainFormatter,
+    cms::log::RuntimeLevelFilter>;
 using MutexRef = cms::sync::MutexRef<ExternalMutex>;
 using ReferencedLogger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, MutexRef>;
@@ -154,6 +264,18 @@ static_assert(
         std::underlying_type<cms::log::Level>::type,
         std::uint8_t>::value,
     "Level must use uint8_t");
+static_assert(static_cast<std::uint8_t>(cms::log::Level::trace) == 0,
+    "trace ordering changed");
+static_assert(static_cast<std::uint8_t>(cms::log::Level::debug) == 1,
+    "debug ordering changed");
+static_assert(static_cast<std::uint8_t>(cms::log::Level::info) == 2,
+    "info ordering changed");
+static_assert(static_cast<std::uint8_t>(cms::log::Level::warning) == 3,
+    "warning ordering changed");
+static_assert(static_cast<std::uint8_t>(cms::log::Level::error) == 4,
+    "error ordering changed");
+static_assert(static_cast<std::uint8_t>(cms::log::Level::critical) == 5,
+    "critical ordering changed");
 static_assert(std::is_same<cms::log::Timestamp, std::uint64_t>::value,
     "Timestamp must use uint64_t");
 static_assert(cms::log::maxFormattedRecordOverhead == 35,
@@ -166,10 +288,18 @@ static_assert(cms::log::RuntimeAnsiFormatter::maxOverhead == 43,
     "runtime ANSI formatter overhead contract changed");
 static_assert(std::is_same<Logger, ExplicitPlainLogger>::value,
     "five-parameter logger must keep the plain formatter default");
+static_assert(std::is_same<Logger, ExplicitPlainNoFilterLogger>::value,
+    "five-parameter logger must keep the no-filter default");
 static_assert(!std::is_same<Logger, AnsiLogger>::value,
     "ANSI formatter must require explicit selection");
+static_assert(std::is_same<AnsiLogger, ExplicitAnsiNoFilterLogger>::value,
+    "six-parameter ANSI logger must keep the no-filter default");
 static_assert(!std::is_same<Logger, RuntimeAnsiLogger>::value,
     "runtime ANSI formatter must require explicit selection");
+static_assert(std::is_same<
+    RuntimeAnsiLogger,
+    ExplicitRuntimeAnsiNoFilterLogger>::value,
+    "six-parameter runtime ANSI logger must keep the no-filter default");
 static_assert(std::is_same<
     decltype(cms::log::PlainFormatter::format(
         std::declval<const cms::log::Record&>(),
@@ -210,6 +340,52 @@ static_assert(noexcept(
 static_assert(noexcept(
     std::declval<const cms::log::RuntimeAnsiFormatter&>().useColor()),
     "RuntimeAnsiFormatter useColor must preserve noexcept");
+static_assert(std::is_empty<cms::log::NoLevelFilter>::value,
+    "NoLevelFilter must remain stateless");
+static_assert(std::is_nothrow_default_constructible<
+    cms::log::RuntimeLevelFilter>::value,
+    "RuntimeLevelFilter construction must preserve noexcept");
+static_assert(std::is_same<
+    decltype(cms::log::NoLevelFilter::allows(cms::log::Level::info)),
+    bool>::value, "NoLevelFilter allows has the wrong return type");
+static_assert(noexcept(
+    cms::log::NoLevelFilter::allows(cms::log::Level::info)),
+    "NoLevelFilter allows must preserve noexcept");
+static_assert(std::is_same<
+    decltype(std::declval<cms::log::RuntimeLevelFilter&>().setMinLevel(
+        cms::log::Level::warning)),
+    void>::value, "RuntimeLevelFilter setMinLevel has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<const cms::log::RuntimeLevelFilter&>().minLevel()),
+    cms::log::Level>::value,
+    "RuntimeLevelFilter minLevel has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<const cms::log::RuntimeLevelFilter&>().allows(
+        cms::log::Level::warning)),
+    bool>::value, "RuntimeLevelFilter allows has the wrong return type");
+static_assert(noexcept(
+    std::declval<cms::log::RuntimeLevelFilter&>().setMinLevel(
+        cms::log::Level::warning)),
+    "RuntimeLevelFilter setMinLevel must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeLevelFilter&>().minLevel()),
+    "RuntimeLevelFilter minLevel must preserve noexcept");
+static_assert(std::is_same<
+    decltype(std::declval<cms::log::RuntimeLevelFilter&>().setEnabled(true)),
+    void>::value, "RuntimeLevelFilter setEnabled has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<const cms::log::RuntimeLevelFilter&>().enabled()),
+    bool>::value, "RuntimeLevelFilter enabled has the wrong return type");
+static_assert(noexcept(
+    std::declval<cms::log::RuntimeLevelFilter&>().setEnabled(true)),
+    "RuntimeLevelFilter setEnabled must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeLevelFilter&>().enabled()),
+    "RuntimeLevelFilter enabled must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeLevelFilter&>().allows(
+        cms::log::Level::warning)),
+    "RuntimeLevelFilter allows must preserve noexcept");
 
 static_assert(recordContract.messageCapacity() == 16,
     "message capacity includes the terminating NUL");
@@ -241,6 +417,9 @@ static_assert(std::is_default_constructible<NonMovableLogger>::value,
 static_assert(std::is_constructible<
     NonMovableLogger, TestClock, TestSink>::value,
     "Clock and Sink constructor must support a non-movable mutex");
+static_assert(std::is_constructible<
+    NonMovableRuntimeLevelLogger, TestClock, TestSink>::value,
+    "runtime filter must support a non-movable mutex");
 static_assert(!std::is_default_constructible<ReferencedLogger>::value,
     "MutexRef logger requires an external mutex");
 static_assert(std::is_constructible<
@@ -258,6 +437,15 @@ static_assert(std::is_default_constructible<RuntimeAnsiLogger>::value,
     "runtime ANSI logger must be constructible");
 static_assert(std::is_default_constructible<StdMutexRuntimeLogger>::value,
     "StdMutex runtime ANSI logger must be constructible");
+static_assert(std::is_default_constructible<StdMutexRuntimeLevelLogger>::value,
+    "StdMutex runtime level logger must be constructible");
+static_assert(std::is_default_constructible<RuntimeLevelPlainLogger>::value,
+    "plain runtime level logger must be constructible");
+static_assert(std::is_default_constructible<RuntimeLevelAnsiLogger>::value,
+    "ANSI runtime level logger must be constructible");
+static_assert(std::is_default_constructible<
+    RuntimeLevelRuntimeAnsiLogger>::value,
+    "runtime ANSI and level logger must be constructible");
 static_assert(!std::is_copy_constructible<RuntimeAnsiLogger>::value,
     "runtime ANSI logger copy must be deleted");
 static_assert(!std::is_copy_assignable<RuntimeAnsiLogger>::value,
@@ -266,6 +454,14 @@ static_assert(!std::is_move_constructible<RuntimeAnsiLogger>::value,
     "runtime ANSI logger move must be deleted");
 static_assert(!std::is_move_assignable<RuntimeAnsiLogger>::value,
     "runtime ANSI logger move assignment must be deleted");
+static_assert(!std::is_copy_constructible<RuntimeLevelPlainLogger>::value,
+    "runtime level logger copy must be deleted");
+static_assert(!std::is_copy_assignable<RuntimeLevelPlainLogger>::value,
+    "runtime level logger copy assignment must be deleted");
+static_assert(!std::is_move_constructible<RuntimeLevelPlainLogger>::value,
+    "runtime level logger move must be deleted");
+static_assert(!std::is_move_assignable<RuntimeLevelPlainLogger>::value,
+    "runtime level logger move assignment must be deleted");
 
 static_assert(std::is_same<
     decltype(std::declval<Logger&>().log(
@@ -310,6 +506,62 @@ static_assert(noexcept(
 static_assert(noexcept(
     std::declval<const RuntimeAnsiLogger&>().useColor()),
     "runtime logger useColor must preserve noexcept");
+static_assert(!HasSetMinLevel<Logger>::value,
+    "no-filter logger must not expose runtime level state");
+static_assert(!HasMinLevel<Logger>::value,
+    "no-filter logger must not expose runtime level state");
+static_assert(!HasSetLoggingEnabled<Logger>::value,
+    "no-filter logger must not expose logging enabled state");
+static_assert(!HasLoggingEnabled<Logger>::value,
+    "no-filter logger must not expose logging enabled state");
+static_assert(!HasSetMinLevel<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must not gain runtime level state by default");
+static_assert(!HasMinLevel<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must not gain runtime level state by default");
+static_assert(!HasSetLoggingEnabled<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must not gain logging enabled state by default");
+static_assert(!HasLoggingEnabled<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must not gain logging enabled state by default");
+static_assert(HasSetMinLevel<RuntimeLevelPlainLogger>::value,
+    "runtime level logger must expose setMinLevel");
+static_assert(HasMinLevel<RuntimeLevelPlainLogger>::value,
+    "runtime level logger must expose minLevel");
+static_assert(HasSetLoggingEnabled<RuntimeLevelPlainLogger>::value,
+    "runtime level logger must expose setLoggingEnabled");
+static_assert(HasLoggingEnabled<RuntimeLevelPlainLogger>::value,
+    "runtime level logger must expose loggingEnabled");
+static_assert(std::is_same<
+    decltype(std::declval<RuntimeLevelPlainLogger&>().setMinLevel(
+        cms::log::Level::warning)),
+    void>::value, "logger setMinLevel has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<const RuntimeLevelPlainLogger&>().minLevel()),
+    cms::log::Level>::value, "logger minLevel has the wrong return type");
+static_assert(noexcept(
+    std::declval<RuntimeLevelPlainLogger&>().setMinLevel(
+        cms::log::Level::warning)),
+    "logger setMinLevel must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const RuntimeLevelPlainLogger&>().minLevel()),
+    "logger minLevel must preserve noexcept");
+static_assert(std::is_same<
+    decltype(std::declval<RuntimeLevelPlainLogger&>().setLoggingEnabled(true)),
+    void>::value, "logger setLoggingEnabled has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<const RuntimeLevelPlainLogger&>().loggingEnabled()),
+    bool>::value, "logger loggingEnabled has the wrong return type");
+static_assert(noexcept(
+    std::declval<RuntimeLevelPlainLogger&>().setLoggingEnabled(true)),
+    "logger setLoggingEnabled must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const RuntimeLevelPlainLogger&>().loggingEnabled()),
+    "logger loggingEnabled must preserve noexcept");
+static_assert(HasSetUseColor<RuntimeLevelRuntimeAnsiLogger>::value,
+    "combined runtime logger must expose setUseColor");
+static_assert(HasSetMinLevel<RuntimeLevelRuntimeAnsiLogger>::value,
+    "combined runtime logger must expose setMinLevel");
+static_assert(HasSetLoggingEnabled<RuntimeLevelRuntimeAnsiLogger>::value,
+    "combined runtime logger must expose setLoggingEnabled");
 
 static_assert(!HasQueueAccessor<Logger>::value,
     "raw Queue access must not escape the logger");
@@ -325,3 +577,7 @@ static_assert(!HasFormatterAccessor<Logger>::value,
     "raw Formatter access must not escape the logger");
 static_assert(!HasFormatterAccessor<RuntimeAnsiLogger>::value,
     "raw runtime Formatter access must not escape the logger");
+static_assert(!HasLevelFilterAccessor<Logger>::value,
+    "raw LevelFilter access must not escape the logger");
+static_assert(!HasLevelFilterAccessor<RuntimeLevelPlainLogger>::value,
+    "raw runtime LevelFilter access must not escape the logger");

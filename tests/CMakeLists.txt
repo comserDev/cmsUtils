@@ -756,3 +756,75 @@ cms_configure_target(cms_async_logger_runtime_ansi_tests)
 add_test(
     NAME cms.async_logger_runtime_ansi
     COMMAND cms_async_logger_runtime_ansi_tests)
+
+add_library(cms_level_filter_header_compile OBJECT
+    compile/test_level_filter_header.cpp
+)
+
+target_include_directories(cms_level_filter_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_level_filter_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_level_filter_header_compile)
+
+add_executable(cms_level_filter_tests
+    unit/test_level_filter.cpp
+)
+
+target_link_libraries(cms_level_filter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_level_filter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_level_filter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_level_filter_tests)
+add_test(NAME cms.level_filter COMMAND cms_level_filter_tests)
+
+add_executable(cms_async_logger_runtime_level_tests
+    unit/test_async_logger_runtime_level.cpp
+)
+
+target_link_libraries(cms_async_logger_runtime_level_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_async_logger_runtime_level_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(
+    cms_async_logger_runtime_level_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_async_logger_runtime_level_tests)
+add_test(
+    NAME cms.async_logger_runtime_level
+    COMMAND cms_async_logger_runtime_level_tests)
+
+add_executable(cms_async_logger_runtime_features_tests
+    unit/test_async_logger_runtime_features.cpp
+)
+
+target_link_libraries(cms_async_logger_runtime_features_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_async_logger_runtime_features_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(
+    cms_async_logger_runtime_features_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_async_logger_runtime_features_tests)
+add_test(
+    NAME cms.async_logger_runtime_features
+    COMMAND cms_async_logger_runtime_features_tests)

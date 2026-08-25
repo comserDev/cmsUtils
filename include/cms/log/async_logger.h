@@ -8,6 +8,7 @@
 #include <cms/log/clock.h>
 #include <cms/log/formatter.h>
 #include <cms/log/level.h>
+#include <cms/log/level_filter.h>
 #include <cms/log/record.h>
 #include <cms/log/runtime_ansi_formatter.h>
 #include <cms/log/sink.h>
@@ -22,9 +23,9 @@ namespace log {
 
 namespace detail {
 
-// Stateless formatter는 기존 static policy를 그대로 호출한다.
-template<class Formatter>
-class AsyncLoggerFormatterStorage {
+// 기본 조합은 state를 갖지 않고 두 static policy를 직접 호출한다.
+template<class Formatter, class LevelFilter>
+class AsyncLoggerPolicyStorage {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -32,16 +33,26 @@ protected:
             noexcept(Formatter::format(record, output))) {
         return Formatter::format(record, output);
     }
+
+    bool allowsLevel(Level level) const noexcept(
+        noexcept(LevelFilter::allows(level))) {
+        return LevelFilter::allows(level);
+    }
 };
 
-// Runtime switching을 선택한 logger만 formatter state를 소유한다.
-template<>
-class AsyncLoggerFormatterStorage<RuntimeAnsiFormatter> {
+// Runtime color만 선택한 조합은 formatter state만 소유한다.
+template<class LevelFilter>
+class AsyncLoggerPolicyStorage<RuntimeAnsiFormatter, LevelFilter> {
 protected:
     WriteResult formatRecord(
         const Record& record,
         StringBuffer output) noexcept {
         return formatter_.format(record, output);
+    }
+
+    bool allowsLevel(Level level) const noexcept(
+        noexcept(LevelFilter::allows(level))) {
+        return LevelFilter::allows(level);
     }
 
     void setRuntimeUseColor(bool enabled) noexcept {
@@ -56,6 +67,84 @@ private:
     RuntimeAnsiFormatter formatter_;
 };
 
+// Runtime level만 선택한 조합은 filter state만 소유한다.
+template<class Formatter>
+class AsyncLoggerPolicyStorage<Formatter, RuntimeLevelFilter> {
+protected:
+    WriteResult formatRecord(
+        const Record& record,
+        StringBuffer output) noexcept(
+            noexcept(Formatter::format(record, output))) {
+        return Formatter::format(record, output);
+    }
+
+    bool allowsLevel(Level level) const noexcept {
+        return levelFilter_.allows(level);
+    }
+
+    void setRuntimeMinLevel(Level level) noexcept {
+        levelFilter_.setMinLevel(level);
+    }
+
+    Level runtimeMinLevel() const noexcept {
+        return levelFilter_.minLevel();
+    }
+
+    void setRuntimeLoggingEnabled(bool enabled) noexcept {
+        levelFilter_.setEnabled(enabled);
+    }
+
+    bool runtimeLoggingEnabled() const noexcept {
+        return levelFilter_.enabled();
+    }
+
+private:
+    RuntimeLevelFilter levelFilter_;
+};
+
+// 두 runtime 기능을 함께 선택한 조합만 두 state를 모두 소유한다.
+template<>
+class AsyncLoggerPolicyStorage<RuntimeAnsiFormatter, RuntimeLevelFilter> {
+protected:
+    WriteResult formatRecord(
+        const Record& record,
+        StringBuffer output) noexcept {
+        return formatter_.format(record, output);
+    }
+
+    bool allowsLevel(Level level) const noexcept {
+        return levelFilter_.allows(level);
+    }
+
+    void setRuntimeUseColor(bool enabled) noexcept {
+        formatter_.setUseColor(enabled);
+    }
+
+    bool runtimeUseColor() const noexcept {
+        return formatter_.useColor();
+    }
+
+    void setRuntimeMinLevel(Level level) noexcept {
+        levelFilter_.setMinLevel(level);
+    }
+
+    Level runtimeMinLevel() const noexcept {
+        return levelFilter_.minLevel();
+    }
+
+    void setRuntimeLoggingEnabled(bool enabled) noexcept {
+        levelFilter_.setEnabled(enabled);
+    }
+
+    bool runtimeLoggingEnabled() const noexcept {
+        return levelFilter_.enabled();
+    }
+
+private:
+    RuntimeAnsiFormatter formatter_;
+    RuntimeLevelFilter levelFilter_;
+};
+
 } // namespace detail
 
 // Queue access는 Mutex가 보호하고 Clock의 producer 동시 호출 안전성은 backend가
@@ -67,8 +156,10 @@ template<
     class Clock,
     class Sink,
     class Mutex,
-    class Formatter = PlainFormatter>
-class AsyncLogger : private detail::AsyncLoggerFormatterStorage<Formatter> {
+    class Formatter = PlainFormatter,
+    class LevelFilter = NoLevelFilter>
+class AsyncLogger
+    : private detail::AsyncLoggerPolicyStorage<Formatter, LevelFilter> {
     static_assert(
         MessageBytes
             <= (std::numeric_limits<std::size_t>::max)()
@@ -125,6 +216,10 @@ public:
     AsyncLogger& operator=(AsyncLogger&&) = delete;
 
     Status log(Level level, StringView message) {
+        // Level filter는 enqueue 시점에 적용하고 runtime color는 drain 시점에 적용한다.
+        if (!this->allowsLevel(level)) {
+            return Status::ok;
+        }
         if (message.size() > MessageBytes - 1) {
             return Status::no_space;
         }
@@ -181,6 +276,47 @@ public:
             int>::type = 0>
     bool useColor() const noexcept {
         return this->runtimeUseColor();
+    }
+
+    // Runtime filter 설정과 log를 동시에 호출하려면 caller가 외부에서 동기화한다.
+    template<
+        class LevelFilterType = LevelFilter,
+        typename std::enable_if<
+            std::is_same<LevelFilter, RuntimeLevelFilter>::value
+                && std::is_same<LevelFilterType, LevelFilter>::value,
+            int>::type = 0>
+    void setMinLevel(Level level) noexcept {
+        this->setRuntimeMinLevel(level);
+    }
+
+    template<
+        class LevelFilterType = LevelFilter,
+        typename std::enable_if<
+            std::is_same<LevelFilter, RuntimeLevelFilter>::value
+                && std::is_same<LevelFilterType, LevelFilter>::value,
+            int>::type = 0>
+    Level minLevel() const noexcept {
+        return this->runtimeMinLevel();
+    }
+
+    template<
+        class LevelFilterType = LevelFilter,
+        typename std::enable_if<
+            std::is_same<LevelFilter, RuntimeLevelFilter>::value
+                && std::is_same<LevelFilterType, LevelFilter>::value,
+            int>::type = 0>
+    void setLoggingEnabled(bool enabled) noexcept {
+        this->setRuntimeLoggingEnabled(enabled);
+    }
+
+    template<
+        class LevelFilterType = LevelFilter,
+        typename std::enable_if<
+            std::is_same<LevelFilter, RuntimeLevelFilter>::value
+                && std::is_same<LevelFilterType, LevelFilter>::value,
+            int>::type = 0>
+    bool loggingEnabled() const noexcept {
+        return this->runtimeLoggingEnabled();
     }
 
     std::size_t pending() const
