@@ -9,6 +9,8 @@
 #include <cms/log/formatter.h>
 #include <cms/log/level.h>
 #include <cms/log/record.h>
+#include <cms/log/runtime_ansi_formatter.h>
+#include <cms/platform/std_mutex.h>
 #include <cms/static_string.h>
 #include <cms/sync/mutex_ref.h>
 #include <cms/sync/null_mutex.h>
@@ -79,6 +81,33 @@ struct HasFrontAccessor<
     Type,
     std::void_t<decltype(std::declval<Type&>().front())>> : std::true_type {};
 
+template<class Type, class = void>
+struct HasSetUseColor : std::false_type {};
+
+template<class Type>
+struct HasSetUseColor<
+    Type,
+    std::void_t<decltype(std::declval<Type&>().setUseColor(true))>>
+    : std::true_type {};
+
+template<class Type, class = void>
+struct HasUseColor : std::false_type {};
+
+template<class Type>
+struct HasUseColor<
+    Type,
+    std::void_t<decltype(std::declval<const Type&>().useColor())>>
+    : std::true_type {};
+
+template<class Type, class = void>
+struct HasFormatterAccessor : std::false_type {};
+
+template<class Type>
+struct HasFormatterAccessor<
+    Type,
+    std::void_t<decltype(std::declval<Type&>().formatter())>>
+    : std::true_type {};
+
 using StaticRecord = cms::log::StaticRecord<16>;
 using Logger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, cms::sync::NullMutex>;
@@ -96,6 +125,20 @@ using AnsiLogger = cms::log::AsyncLogger<
     TestSink,
     cms::sync::NullMutex,
     cms::log::AnsiFormatter>;
+using RuntimeAnsiLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::RuntimeAnsiFormatter>;
+using StdMutexRuntimeLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::platform::StdMutex,
+    cms::log::RuntimeAnsiFormatter>;
 using NonMovableLogger = cms::log::AsyncLogger<
     16, 4, TestClock, TestSink, NonMovableMutex>;
 using MutexRef = cms::sync::MutexRef<ExternalMutex>;
@@ -119,10 +162,14 @@ static_assert(cms::log::PlainFormatter::maxOverhead == 35,
     "plain formatter overhead contract changed");
 static_assert(cms::log::AnsiFormatter::maxOverhead == 43,
     "ANSI formatter overhead contract changed");
+static_assert(cms::log::RuntimeAnsiFormatter::maxOverhead == 43,
+    "runtime ANSI formatter overhead contract changed");
 static_assert(std::is_same<Logger, ExplicitPlainLogger>::value,
     "five-parameter logger must keep the plain formatter default");
 static_assert(!std::is_same<Logger, AnsiLogger>::value,
     "ANSI formatter must require explicit selection");
+static_assert(!std::is_same<Logger, RuntimeAnsiLogger>::value,
+    "runtime ANSI formatter must require explicit selection");
 static_assert(std::is_same<
     decltype(cms::log::PlainFormatter::format(
         std::declval<const cms::log::Record&>(),
@@ -143,6 +190,26 @@ static_assert(noexcept(cms::log::AnsiFormatter::format(
     std::declval<const cms::log::Record&>(),
     cms::StringBuffer())),
     "AnsiFormatter must preserve noexcept");
+static_assert(std::is_nothrow_default_constructible<
+    cms::log::RuntimeAnsiFormatter>::value,
+    "RuntimeAnsiFormatter construction must preserve noexcept");
+static_assert(std::is_same<
+    decltype(std::declval<const cms::log::RuntimeAnsiFormatter&>().format(
+        std::declval<const cms::log::Record&>(),
+        cms::StringBuffer())),
+    cms::WriteResult>::value,
+    "RuntimeAnsiFormatter must return WriteResult");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeAnsiFormatter&>().format(
+        std::declval<const cms::log::Record&>(),
+        cms::StringBuffer())),
+    "RuntimeAnsiFormatter format must preserve noexcept");
+static_assert(noexcept(
+    std::declval<cms::log::RuntimeAnsiFormatter&>().setUseColor(true)),
+    "RuntimeAnsiFormatter setUseColor must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const cms::log::RuntimeAnsiFormatter&>().useColor()),
+    "RuntimeAnsiFormatter useColor must preserve noexcept");
 
 static_assert(recordContract.messageCapacity() == 16,
     "message capacity includes the terminating NUL");
@@ -187,6 +254,18 @@ static_assert(!std::is_move_constructible<Logger>::value,
     "logger move must be deleted");
 static_assert(!std::is_move_assignable<Logger>::value,
     "logger move assignment must be deleted");
+static_assert(std::is_default_constructible<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must be constructible");
+static_assert(std::is_default_constructible<StdMutexRuntimeLogger>::value,
+    "StdMutex runtime ANSI logger must be constructible");
+static_assert(!std::is_copy_constructible<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger copy must be deleted");
+static_assert(!std::is_copy_assignable<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger copy assignment must be deleted");
+static_assert(!std::is_move_constructible<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger move must be deleted");
+static_assert(!std::is_move_assignable<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger move assignment must be deleted");
 
 static_assert(std::is_same<
     decltype(std::declval<Logger&>().log(
@@ -207,6 +286,30 @@ static_assert(std::is_same<
 static_assert(std::is_same<
     decltype(std::declval<const Logger&>().full()),
     bool>::value, "full has the wrong return type");
+static_assert(!HasSetUseColor<Logger>::value,
+    "plain logger must not expose runtime color state");
+static_assert(!HasUseColor<Logger>::value,
+    "plain logger must not expose runtime color state");
+static_assert(!HasSetUseColor<AnsiLogger>::value,
+    "always-ANSI logger must not expose runtime color state");
+static_assert(!HasUseColor<AnsiLogger>::value,
+    "always-ANSI logger must not expose runtime color state");
+static_assert(HasSetUseColor<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must expose setUseColor");
+static_assert(HasUseColor<RuntimeAnsiLogger>::value,
+    "runtime ANSI logger must expose useColor");
+static_assert(std::is_same<
+    decltype(std::declval<RuntimeAnsiLogger&>().setUseColor(true)),
+    void>::value, "setUseColor has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<const RuntimeAnsiLogger&>().useColor()),
+    bool>::value, "useColor has the wrong return type");
+static_assert(noexcept(
+    std::declval<RuntimeAnsiLogger&>().setUseColor(true)),
+    "runtime logger setUseColor must preserve noexcept");
+static_assert(noexcept(
+    std::declval<const RuntimeAnsiLogger&>().useColor()),
+    "runtime logger useColor must preserve noexcept");
 
 static_assert(!HasQueueAccessor<Logger>::value,
     "raw Queue access must not escape the logger");
@@ -218,3 +321,7 @@ static_assert(!HasMutexAccessor<Logger>::value,
     "raw Mutex access must not escape the logger");
 static_assert(!HasFrontAccessor<Logger>::value,
     "raw front access must not escape the logger");
+static_assert(!HasFormatterAccessor<Logger>::value,
+    "raw Formatter access must not escape the logger");
+static_assert(!HasFormatterAccessor<RuntimeAnsiLogger>::value,
+    "raw runtime Formatter access must not escape the logger");

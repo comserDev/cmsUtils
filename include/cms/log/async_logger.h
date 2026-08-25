@@ -9,6 +9,7 @@
 #include <cms/log/formatter.h>
 #include <cms/log/level.h>
 #include <cms/log/record.h>
+#include <cms/log/runtime_ansi_formatter.h>
 #include <cms/log/sink.h>
 #include <cms/static_queue.h>
 #include <cms/static_string.h>
@@ -18,6 +19,44 @@
 
 namespace cms {
 namespace log {
+
+namespace detail {
+
+// Stateless formatter는 기존 static policy를 그대로 호출한다.
+template<class Formatter>
+class AsyncLoggerFormatterStorage {
+protected:
+    WriteResult formatRecord(
+        const Record& record,
+        StringBuffer output) noexcept(
+            noexcept(Formatter::format(record, output))) {
+        return Formatter::format(record, output);
+    }
+};
+
+// Runtime switching을 선택한 logger만 formatter state를 소유한다.
+template<>
+class AsyncLoggerFormatterStorage<RuntimeAnsiFormatter> {
+protected:
+    WriteResult formatRecord(
+        const Record& record,
+        StringBuffer output) noexcept {
+        return formatter_.format(record, output);
+    }
+
+    void setRuntimeUseColor(bool enabled) noexcept {
+        formatter_.setUseColor(enabled);
+    }
+
+    bool runtimeUseColor() const noexcept {
+        return formatter_.useColor();
+    }
+
+private:
+    RuntimeAnsiFormatter formatter_;
+};
+
+} // namespace detail
 
 // Queue access는 Mutex가 보호하고 Clock의 producer 동시 호출 안전성은 backend가
 // 보장한다. drainOne은 single consumer를 전제로 하며 여러 consumer가 호출하면
@@ -29,7 +68,7 @@ template<
     class Sink,
     class Mutex,
     class Formatter = PlainFormatter>
-class AsyncLogger {
+class AsyncLogger : private detail::AsyncLoggerFormatterStorage<Formatter> {
     static_assert(
         MessageBytes
             <= (std::numeric_limits<std::size_t>::max)()
@@ -112,7 +151,7 @@ public:
 
         StaticString<formattedLineStorageBytes> line;
         const WriteResult formatted =
-            Formatter::format(record.view(), line.buffer());
+            this->formatRecord(record.view(), line.buffer());
         // dequeue가 끝난 뒤 format하므로 실패해도 record는 이미 제거된 상태다.
         if (formatted.status != Status::ok) {
             return formatted.status;
@@ -121,6 +160,27 @@ public:
         // queue lock을 풀고 나서 sink I/O를 수행한다.
         sink_.write(line.view());
         return Status::ok;
+    }
+
+    // mode는 drain 시점에 적용한다. drainOne과 동시에 변경하려면 외부 동기화한다.
+    template<
+        class FormatterType = Formatter,
+        typename std::enable_if<
+            std::is_same<Formatter, RuntimeAnsiFormatter>::value
+                && std::is_same<FormatterType, Formatter>::value,
+            int>::type = 0>
+    void setUseColor(bool enabled) noexcept {
+        this->setRuntimeUseColor(enabled);
+    }
+
+    template<
+        class FormatterType = Formatter,
+        typename std::enable_if<
+            std::is_same<Formatter, RuntimeAnsiFormatter>::value
+                && std::is_same<FormatterType, Formatter>::value,
+            int>::type = 0>
+    bool useColor() const noexcept {
+        return this->runtimeUseColor();
     }
 
     std::size_t pending() const
