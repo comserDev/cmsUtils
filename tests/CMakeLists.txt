@@ -165,3 +165,31 @@ cms_configure_target(cms_utf8_tests)
 
 add_test(NAME cms.utf8 COMMAND cms_utf8_tests)
 set_tests_properties(cms.utf8 PROPERTIES TIMEOUT 30)
+
+add_library(cms_static_string_compile_contract OBJECT
+    compile/test_static_string_contract.cpp
+)
+
+target_link_libraries(cms_static_string_compile_contract PRIVATE cms_embedded_utils)
+cms_configure_target(cms_static_string_compile_contract)
+
+add_library(cms_static_string_header_compile OBJECT
+    compile/test_static_string_header.cpp
+)
+
+target_compile_features(cms_static_string_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_static_string_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_static_string_header_compile)
+
+add_executable(cms_static_string_tests
+    unit/test_static_string.cpp
+)
+
+target_link_libraries(cms_static_string_tests PRIVATE cms_embedded_utils)
+target_include_directories(cms_static_string_tests PRIVATE support)
+cms_configure_target(cms_static_string_tests)
+
+add_test(NAME cms.static_string COMMAND cms_static_string_tests)
+set_tests_properties(cms.static_string PROPERTIES TIMEOUT 30)
