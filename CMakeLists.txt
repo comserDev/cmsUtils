@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(cms_embedded_utils LANGUAGES CXX)
+project(cmsUtils LANGUAGES CXX)
 
 option(CMS_ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer" OFF)
 option(CMS_ENABLE_UNDEFINED_SANITIZER "Enable UndefinedBehaviorSanitizer" OFF)
@@ -105,7 +105,7 @@ function(cms_configure_target target_name)
     endif()
 endfunction()
 
-add_library(cms_embedded_utils STATIC
+add_library(cms_utils STATIC
     src/cmsAsyncLogger.cpp
     src/cmsStringBase.cpp
     src/cmsStringUtil.cpp
@@ -119,14 +119,14 @@ add_library(cms_embedded_utils STATIC
     src/utf8.cpp
 )
 
-target_compile_features(cms_embedded_utils PUBLIC cxx_std_17)
+target_compile_features(cms_utils PUBLIC cxx_std_17)
 
-target_include_directories(cms_embedded_utils PUBLIC
+target_include_directories(cms_utils PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
-cms_configure_target(cms_embedded_utils)
+cms_configure_target(cms_utils)
 
 include(CTest)
 

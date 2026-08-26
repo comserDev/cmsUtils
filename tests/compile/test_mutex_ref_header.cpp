@@ -1,4 +1,4 @@
-#include <cms/sync/mutex_ref.h>
+#include <cms/util/sync/mutex_ref.h>
 
 struct HeaderMutex {
     void lock() noexcept {}
@@ -6,5 +6,5 @@ struct HeaderMutex {
 };
 
 static_assert(
-    sizeof(cms::sync::MutexRef<HeaderMutex>) > 0,
+    sizeof(cms::util::sync::MutexRef<HeaderMutex>) > 0,
     "mutex_ref.h must compile independently");

@@ -1,16 +1,17 @@
-#include <cms/log/styled_ansi_formatter.h>
+#include <cms/util/log/styled_ansi_formatter.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 
-#include <cms/format.h>
-#include <cms/log/level.h>
-#include <cms/static_string.h>
-#include <cms/string_view.h>
+#include <cms/util/format.h>
+#include <cms/util/log/level.h>
+#include <cms/util/static_string.h>
+#include <cms/util/string_view.h>
 
 namespace cms {
+namespace util {
 namespace log {
 
 namespace {
@@ -233,7 +234,7 @@ WriteResult formatStyledAnsi(
     }
 
     StaticString<21> timestamp;
-    const WriteResult timestampResult = cms::format::unsignedInteger(
+    const WriteResult timestampResult = cms::util::format::unsignedInteger(
         record.timestampMilliseconds,
         timestamp.buffer());
     if (timestampResult.status != Status::ok) {
@@ -310,4 +311,5 @@ WriteResult formatStyledAnsi(
 }
 
 } // namespace log
+} // namespace util
 } // namespace cms

@@ -1,5 +1,5 @@
 /// @author comser.dev
-/// @brief cms-embedded-utils 기반의 고성능 비동기 로거
+/// @brief cmsUtils 기반의 고성능 비동기 로거
 
 #pragma once
 

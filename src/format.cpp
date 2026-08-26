@@ -1,8 +1,9 @@
-#include <cms/format.h>
+#include <cms/util/format.h>
 
 #include <cstddef>
 
 namespace cms {
+namespace util {
 namespace format {
 
 namespace {
@@ -147,4 +148,5 @@ WriteResult appendSignedInteger(
 }
 
 } // namespace format
+} // namespace util
 } // namespace cms

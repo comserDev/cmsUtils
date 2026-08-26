@@ -2,7 +2,7 @@ add_executable(cms_string_tests
     ../test/test_cmsString.cpp
 )
 
-target_link_libraries(cms_string_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_tests PRIVATE cms_utils)
 target_include_directories(cms_string_tests PRIVATE support)
 cms_configure_target(cms_string_tests)
 
@@ -13,7 +13,7 @@ add_executable(cms_logger_tests
     ../test/test_cmsLogger.cpp
 )
 
-target_link_libraries(cms_logger_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_logger_tests PRIVATE cms_utils)
 target_include_directories(cms_logger_tests PRIVATE support)
 cms_configure_target(cms_logger_tests)
 
@@ -58,7 +58,7 @@ add_library(cms_status_compile_contract OBJECT
     compile/test_status_contract.cpp
 )
 
-target_link_libraries(cms_status_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_status_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_status_compile_contract)
 
 add_library(cms_status_header_compile OBJECT
@@ -71,11 +71,22 @@ target_include_directories(cms_status_header_compile PRIVATE
 )
 cms_configure_target(cms_status_header_compile)
 
+add_library(cms_public_namespace_compile_contract OBJECT
+    compile/test_public_namespace_contract.cpp
+)
+
+target_compile_features(
+    cms_public_namespace_compile_contract PRIVATE cxx_std_17)
+target_include_directories(cms_public_namespace_compile_contract PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_public_namespace_compile_contract)
+
 add_executable(cms_status_tests
     unit/test_status.cpp
 )
 
-target_link_libraries(cms_status_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_status_tests PRIVATE cms_utils)
 target_include_directories(cms_status_tests PRIVATE support)
 cms_configure_target(cms_status_tests)
 
@@ -86,14 +97,14 @@ add_library(cms_string_view_compile_contract OBJECT
     compile/test_string_view_contract.cpp
 )
 
-target_link_libraries(cms_string_view_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_view_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_string_view_compile_contract)
 
 add_library(cms_string_buffer_compile_contract OBJECT
     compile/test_string_buffer_contract.cpp
 )
 
-target_link_libraries(cms_string_buffer_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_buffer_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_string_buffer_compile_contract)
 
 add_library(cms_string_view_header_compile OBJECT
@@ -120,7 +131,7 @@ add_executable(cms_string_view_tests
     unit/test_string_view.cpp
 )
 
-target_link_libraries(cms_string_view_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_view_tests PRIVATE cms_utils)
 target_include_directories(cms_string_view_tests PRIVATE support)
 cms_configure_target(cms_string_view_tests)
 
@@ -131,7 +142,7 @@ add_executable(cms_string_buffer_tests
     unit/test_string_buffer.cpp
 )
 
-target_link_libraries(cms_string_buffer_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_buffer_tests PRIVATE cms_utils)
 target_include_directories(cms_string_buffer_tests PRIVATE support)
 cms_configure_target(cms_string_buffer_tests)
 
@@ -142,7 +153,7 @@ add_library(cms_utf8_compile_contract OBJECT
     compile/test_utf8_contract.cpp
 )
 
-target_link_libraries(cms_utf8_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_utf8_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_utf8_compile_contract)
 
 add_library(cms_utf8_header_compile OBJECT
@@ -159,7 +170,7 @@ add_executable(cms_utf8_tests
     unit/test_utf8.cpp
 )
 
-target_link_libraries(cms_utf8_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_utf8_tests PRIVATE cms_utils)
 target_include_directories(cms_utf8_tests PRIVATE support)
 cms_configure_target(cms_utf8_tests)
 
@@ -170,7 +181,7 @@ add_library(cms_static_string_compile_contract OBJECT
     compile/test_static_string_contract.cpp
 )
 
-target_link_libraries(cms_static_string_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_static_string_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_static_string_compile_contract)
 
 add_library(cms_static_string_header_compile OBJECT
@@ -187,7 +198,7 @@ add_executable(cms_static_string_tests
     unit/test_static_string.cpp
 )
 
-target_link_libraries(cms_static_string_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_static_string_tests PRIVATE cms_utils)
 target_include_directories(cms_static_string_tests PRIVATE support)
 cms_configure_target(cms_static_string_tests)
 
@@ -198,7 +209,7 @@ add_library(cms_string_ops_compile_contract OBJECT
     compile/test_string_ops_contract.cpp
 )
 
-target_link_libraries(cms_string_ops_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_ops_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_string_ops_compile_contract)
 
 add_library(cms_string_ops_header_compile OBJECT
@@ -215,7 +226,7 @@ add_executable(cms_string_ops_tests
     unit/test_string_ops.cpp
 )
 
-target_link_libraries(cms_string_ops_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_string_ops_tests PRIVATE cms_utils)
 target_include_directories(cms_string_ops_tests PRIVATE support)
 cms_configure_target(cms_string_ops_tests)
 
@@ -226,7 +237,7 @@ add_library(cms_format_compile_contract OBJECT
     compile/test_format_contract.cpp
 )
 
-target_link_libraries(cms_format_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_format_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_format_compile_contract)
 
 add_library(cms_format_header_compile OBJECT
@@ -243,7 +254,7 @@ add_executable(cms_format_tests
     unit/test_format.cpp
 )
 
-target_link_libraries(cms_format_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_format_tests PRIVATE cms_utils)
 target_include_directories(cms_format_tests PRIVATE support)
 cms_configure_target(cms_format_tests)
 
@@ -254,7 +265,7 @@ add_library(cms_parse_compile_contract OBJECT
     compile/test_parse_contract.cpp
 )
 
-target_link_libraries(cms_parse_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_parse_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_parse_compile_contract)
 
 add_library(cms_parse_header_compile OBJECT
@@ -271,7 +282,7 @@ add_executable(cms_parse_tests
     unit/test_parse.cpp
 )
 
-target_link_libraries(cms_parse_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_parse_tests PRIVATE cms_utils)
 target_include_directories(cms_parse_tests PRIVATE support)
 cms_configure_target(cms_parse_tests)
 
@@ -283,7 +294,7 @@ add_library(cms_static_queue_compile_contract OBJECT
 )
 
 target_link_libraries(cms_static_queue_compile_contract PRIVATE
-    cms_embedded_utils
+    cms_utils
 )
 cms_configure_target(cms_static_queue_compile_contract)
 
@@ -301,7 +312,7 @@ add_executable(cms_static_queue_tests
     unit/test_static_queue.cpp
 )
 
-target_link_libraries(cms_static_queue_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_static_queue_tests PRIVATE cms_utils)
 target_include_directories(cms_static_queue_tests PRIVATE support)
 cms_configure_target(cms_static_queue_tests)
 
@@ -312,7 +323,7 @@ add_library(cms_sync_compile_contract OBJECT
     compile/test_sync_contract.cpp
 )
 
-target_link_libraries(cms_sync_compile_contract PRIVATE cms_embedded_utils)
+target_link_libraries(cms_sync_compile_contract PRIVATE cms_utils)
 cms_configure_target(cms_sync_compile_contract)
 
 add_library(cms_synchronized_queue_compile_contract OBJECT
@@ -320,7 +331,7 @@ add_library(cms_synchronized_queue_compile_contract OBJECT
 )
 
 target_link_libraries(cms_synchronized_queue_compile_contract PRIVATE
-    cms_embedded_utils
+    cms_utils
 )
 cms_configure_target(cms_synchronized_queue_compile_contract)
 
@@ -368,7 +379,7 @@ add_executable(cms_synchronized_queue_tests
     unit/test_synchronized_queue.cpp
 )
 
-target_link_libraries(cms_synchronized_queue_tests PRIVATE cms_embedded_utils)
+target_link_libraries(cms_synchronized_queue_tests PRIVATE cms_utils)
 target_include_directories(cms_synchronized_queue_tests PRIVATE support)
 cms_configure_target(cms_synchronized_queue_tests)
 
@@ -380,7 +391,7 @@ add_library(cms_log_compile_contract OBJECT
 
 target_link_libraries(cms_log_compile_contract
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_compile_features(cms_log_compile_contract PRIVATE cxx_std_17)
@@ -464,7 +475,7 @@ add_executable(cms_log_record_tests
 
 target_link_libraries(cms_log_record_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_log_record_tests
@@ -482,7 +493,7 @@ add_executable(cms_log_formatter_tests
 
 target_link_libraries(cms_log_formatter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_log_formatter_tests
@@ -500,7 +511,7 @@ add_executable(cms_async_logger_tests
 
 target_link_libraries(cms_async_logger_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_tests
@@ -519,7 +530,7 @@ add_library(cms_platform_compile_contract OBJECT
 
 target_link_libraries(cms_platform_compile_contract
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_compile_features(cms_platform_compile_contract PRIVATE cxx_std_17)
@@ -635,7 +646,7 @@ add_executable(cms_ansi_formatter_tests
 
 target_link_libraries(cms_ansi_formatter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_ansi_formatter_tests
@@ -653,7 +664,7 @@ add_executable(cms_platform_adapter_tests
 
 target_link_libraries(cms_platform_adapter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_platform_adapter_tests
@@ -671,7 +682,7 @@ add_executable(cms_embedded_adapter_tests
 
 target_link_libraries(cms_embedded_adapter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_embedded_adapter_tests
@@ -691,7 +702,7 @@ add_executable(cms_async_logger_ansi_tests
 
 target_link_libraries(cms_async_logger_ansi_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_ansi_tests
@@ -722,7 +733,7 @@ add_executable(cms_runtime_ansi_formatter_tests
 
 target_link_libraries(cms_runtime_ansi_formatter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_runtime_ansi_formatter_tests
@@ -742,7 +753,7 @@ add_executable(cms_async_logger_runtime_ansi_tests
 
 target_link_libraries(cms_async_logger_runtime_ansi_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_runtime_ansi_tests
@@ -775,7 +786,7 @@ add_executable(cms_level_filter_tests
 
 target_link_libraries(cms_level_filter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_level_filter_tests
@@ -793,7 +804,7 @@ add_executable(cms_async_logger_runtime_level_tests
 
 target_link_libraries(cms_async_logger_runtime_level_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_runtime_level_tests
@@ -814,7 +825,7 @@ add_executable(cms_async_logger_runtime_features_tests
 
 target_link_libraries(cms_async_logger_runtime_features_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_runtime_features_tests
@@ -848,7 +859,7 @@ add_executable(cms_styled_ansi_formatter_tests
 
 target_link_libraries(cms_styled_ansi_formatter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_styled_ansi_formatter_tests
@@ -868,7 +879,7 @@ add_executable(cms_async_logger_styled_tests
 
 target_link_libraries(cms_async_logger_styled_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_styled_tests
@@ -900,7 +911,7 @@ add_executable(cms_printf_log_tests
 
 target_link_libraries(cms_printf_log_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_printf_log_tests
@@ -918,7 +929,7 @@ add_executable(cms_printf_log_integration_tests
 
 target_link_libraries(cms_printf_log_integration_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_printf_log_integration_tests
@@ -951,7 +962,7 @@ add_executable(cms_async_logger_overwrite_tests
 
 target_link_libraries(cms_async_logger_overwrite_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_async_logger_overwrite_tests
@@ -972,7 +983,7 @@ add_library(cms_utc_offset_formatter_compile_contract OBJECT
 
 target_link_libraries(cms_utc_offset_formatter_compile_contract
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_compile_features(
@@ -1011,7 +1022,7 @@ add_executable(cms_utc_offset_formatter_tests
 
 target_link_libraries(cms_utc_offset_formatter_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_utc_offset_formatter_tests
@@ -1032,7 +1043,7 @@ add_executable(cms_system_clock_tests
 
 target_link_libraries(cms_system_clock_tests
     PRIVATE
-        cms_embedded_utils
+        cms_utils
 )
 
 target_include_directories(cms_system_clock_tests

@@ -1,49 +1,49 @@
 #include <type_traits>
 
-#include <cms/log/printf_log.h>
-#include <cms/sync/null_mutex.h>
+#include <cms/util/log/printf_log.h>
+#include <cms/util/sync/null_mutex.h>
 
 namespace {
 
 struct HeaderClock {
-    cms::log::Timestamp nowMilliseconds() noexcept { return 0; }
+    cms::util::log::Timestamp nowMilliseconds() noexcept { return 0; }
 };
 
 struct HeaderSink {
-    void write(cms::StringView) noexcept {}
+    void write(cms::util::StringView) noexcept {}
 };
 
-using HeaderLogger = cms::log::AsyncLogger<
+using HeaderLogger = cms::util::log::AsyncLogger<
     16,
     2,
     HeaderClock,
     HeaderSink,
-    cms::sync::NullMutex>;
-using OverwriteHeaderLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex>;
+using OverwriteHeaderLogger = cms::util::log::AsyncLogger<
     16,
     2,
     HeaderClock,
     HeaderSink,
-    cms::sync::NullMutex,
-    cms::log::PlainFormatter,
-    cms::log::NoLevelFilter,
-    cms::log::OverwriteOldestOnFull>;
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter,
+    cms::util::log::NoLevelFilter,
+    cms::util::log::OverwriteOldestOnFull>;
 
 static_assert(std::is_same<
-    decltype(cms::log::logf(
+    decltype(cms::util::log::logf(
         std::declval<HeaderLogger&>(),
-        cms::log::Level::info,
+        cms::util::log::Level::info,
         "%d",
         1)),
-    cms::Status>::value,
+    cms::util::Status>::value,
     "printf_log.h must expose Status-returning logf");
 static_assert(std::is_same<
-    decltype(cms::log::logf(
+    decltype(cms::util::log::logf(
         std::declval<OverwriteHeaderLogger&>(),
-        cms::log::Level::info,
+        cms::util::log::Level::info,
         "%d",
         1)),
-    cms::Status>::value,
+    cms::util::Status>::value,
     "logf must support an explicit overwrite logger");
 
 } // namespace

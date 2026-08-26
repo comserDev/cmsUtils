@@ -1,22 +1,22 @@
 #include <cstdint>
 #include <type_traits>
 
-#include <cms/parse.h>
+#include <cms/util/parse.h>
 
-using UnsignedParse = cms::ParseResult<std::uint64_t> (*)(
-    cms::StringView,
+using UnsignedParse = cms::util::ParseResult<std::uint64_t> (*)(
+    cms::util::StringView,
     unsigned int) noexcept;
-using SignedParse = cms::ParseResult<std::int64_t> (*)(
-    cms::StringView,
+using SignedParse = cms::util::ParseResult<std::int64_t> (*)(
+    cms::util::StringView,
     unsigned int) noexcept;
 
 static_assert(
     std::is_same<
-        decltype(&cms::parse::unsignedInteger),
+        decltype(&cms::util::parse::unsignedInteger),
         UnsignedParse>::value,
     "unsignedInteger has the wrong signature");
 static_assert(
     std::is_same<
-        decltype(&cms::parse::signedInteger),
+        decltype(&cms::util::parse::signedInteger),
         SignedParse>::value,
     "signedInteger has the wrong signature");

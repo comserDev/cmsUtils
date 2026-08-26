@@ -1,7 +1,7 @@
-#include <cms/parse.h>
+#include <cms/util/parse.h>
 
-using ParseResult = decltype(cms::parse::unsignedInteger(cms::StringView{}));
+using ParseResult = decltype(cms::util::parse::unsignedInteger(cms::util::StringView{}));
 
 static_assert(
-    sizeof(ParseResult) == sizeof(cms::ParseResult<std::uint64_t>),
+    sizeof(ParseResult) == sizeof(cms::util::ParseResult<std::uint64_t>),
     "parse.h must compile independently");

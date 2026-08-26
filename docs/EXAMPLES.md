@@ -1,6 +1,6 @@
-# cms-embedded-utils Examples
+# cmsUtils Examples
 
-이 문서는 `cms-embedded-utils` 라이브러리를 실무에서 극한까지 활용하는 다양한 시나리오별 예제 코드 모음입니다. 모든 예제는 **Zero-Heap(동적 할당 미사용)** 원칙을 준수합니다.
+이 문서는 `cmsUtils` 라이브러리를 실무에서 극한까지 활용하는 다양한 시나리오별 예제 코드 모음입니다. 모든 예제는 **Zero-Heap(동적 할당 미사용)** 원칙을 준수합니다.
 
 ---
 

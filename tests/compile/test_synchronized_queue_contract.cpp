@@ -2,10 +2,10 @@
 #include <type_traits>
 #include <utility>
 
-#include <cms/static_queue.h>
-#include <cms/sync/mutex_ref.h>
-#include <cms/sync/null_mutex.h>
-#include <cms/synchronized_queue.h>
+#include <cms/util/static_queue.h>
+#include <cms/util/sync/mutex_ref.h>
+#include <cms/util/sync/null_mutex.h>
+#include <cms/util/sync/synchronized_queue.h>
 
 namespace {
 
@@ -69,13 +69,13 @@ struct HasFrontAccessor<
     Type,
     std::void_t<decltype(std::declval<Type&>().front())>> : std::true_type {};
 
-using Queue = cms::StaticQueue<Element, 4>;
-using SyncQueue = cms::SynchronizedQueue<Queue, cms::sync::NullMutex>;
-using Ref = cms::sync::MutexRef<NothrowMutex>;
-using RefQueue = cms::SynchronizedQueue<Queue, Ref>;
-using ThrowingQueue = cms::SynchronizedQueue<Queue, ThrowingMutex>;
+using Queue = cms::util::StaticQueue<Element, 4>;
+using SyncQueue = cms::util::sync::SynchronizedQueue<Queue, cms::util::sync::NullMutex>;
+using Ref = cms::util::sync::MutexRef<NothrowMutex>;
+using RefQueue = cms::util::sync::SynchronizedQueue<Queue, Ref>;
+using ThrowingQueue = cms::util::sync::SynchronizedQueue<Queue, ThrowingMutex>;
 using NonMovableMutexQueue =
-    cms::SynchronizedQueue<Queue, NonMovableMutex>;
+    cms::util::sync::SynchronizedQueue<Queue, NonMovableMutex>;
 
 } // namespace
 
@@ -114,29 +114,29 @@ static_assert(std::is_same<
     bool>::value, "full has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().pop()),
-    cms::Status>::value, "pop has the wrong return type");
+    cms::util::Status>::value, "pop has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().emplace(1)),
-    cms::Status>::value, "emplace has the wrong return type");
+    cms::util::Status>::value, "emplace has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().push(
         std::declval<const Element&>())),
-    cms::Status>::value, "copy push has the wrong return type");
+    cms::util::Status>::value, "copy push has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().push(
         std::declval<Element&&>())),
-    cms::Status>::value, "move push has the wrong return type");
+    cms::util::Status>::value, "move push has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().pushOverwrite(
         std::declval<const Element&>())),
-    cms::Status>::value, "copy overwrite push has the wrong return type");
+    cms::util::Status>::value, "copy overwrite push has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().pushOverwrite(
         std::declval<Element&&>())),
-    cms::Status>::value, "move overwrite push has the wrong return type");
+    cms::util::Status>::value, "move overwrite push has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().consumeFront(Consumer{})),
-    cms::Status>::value, "consumeFront has the wrong return type");
+    cms::util::Status>::value, "consumeFront has the wrong return type");
 
 static_assert(noexcept(std::declval<const SyncQueue&>().size()),
     "size must forward noexcept");

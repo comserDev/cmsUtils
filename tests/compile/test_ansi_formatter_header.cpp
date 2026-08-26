@@ -1,6 +1,6 @@
-#include <cms/log/ansi_formatter.h>
+#include <cms/util/log/ansi_formatter.h>
 
 static_assert(
-    cms::log::AnsiFormatter::maxOverhead
-        == cms::log::maxAnsiFormattedRecordOverhead,
+    cms::util::log::AnsiFormatter::maxOverhead
+        == cms::util::log::maxAnsiFormattedRecordOverhead,
     "ansi_formatter.h must compile independently");

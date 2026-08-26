@@ -1,9 +1,9 @@
 #include <type_traits>
 #include <utility>
 
-#include <cms/sync/lock_guard.h>
-#include <cms/sync/mutex_ref.h>
-#include <cms/sync/null_mutex.h>
+#include <cms/util/sync/lock_guard.h>
+#include <cms/util/sync/mutex_ref.h>
+#include <cms/util/sync/null_mutex.h>
 
 namespace {
 
@@ -17,8 +17,8 @@ struct ThrowingMutex {
     void unlock() noexcept(false) {}
 };
 
-using Guard = cms::sync::LockGuard<NothrowMutex>;
-using Ref = cms::sync::MutexRef<NothrowMutex>;
+using Guard = cms::util::sync::LockGuard<NothrowMutex>;
+using Ref = cms::util::sync::MutexRef<NothrowMutex>;
 
 } // namespace
 
@@ -37,17 +37,17 @@ static_assert(std::is_nothrow_constructible<Guard, NothrowMutex&>::value,
 static_assert(std::is_nothrow_destructible<Guard>::value,
     "LockGuard must forward nothrow unlock");
 static_assert(!std::is_nothrow_constructible<
-    cms::sync::LockGuard<ThrowingMutex>, ThrowingMutex&>::value,
+    cms::util::sync::LockGuard<ThrowingMutex>, ThrowingMutex&>::value,
     "LockGuard must preserve a throwing lock");
 static_assert(!std::is_nothrow_destructible<
-    cms::sync::LockGuard<ThrowingMutex>>::value,
+    cms::util::sync::LockGuard<ThrowingMutex>>::value,
     "LockGuard must preserve a throwing unlock");
 
-static_assert(std::is_empty<cms::sync::NullMutex>::value,
+static_assert(std::is_empty<cms::util::sync::NullMutex>::value,
     "NullMutex must remain empty");
-static_assert(noexcept(std::declval<cms::sync::NullMutex&>().lock()),
+static_assert(noexcept(std::declval<cms::util::sync::NullMutex&>().lock()),
     "NullMutex lock must be noexcept");
-static_assert(noexcept(std::declval<cms::sync::NullMutex&>().unlock()),
+static_assert(noexcept(std::declval<cms::util::sync::NullMutex&>().unlock()),
     "NullMutex unlock must be noexcept");
 
 static_assert(!std::is_default_constructible<Ref>::value,
@@ -63,8 +63,8 @@ static_assert(noexcept(std::declval<Ref&>().lock()),
 static_assert(noexcept(std::declval<Ref&>().unlock()),
     "MutexRef must forward nothrow unlock");
 static_assert(!noexcept(
-    std::declval<cms::sync::MutexRef<ThrowingMutex>&>().lock()),
+    std::declval<cms::util::sync::MutexRef<ThrowingMutex>&>().lock()),
     "MutexRef must preserve a throwing lock");
 static_assert(!noexcept(
-    std::declval<cms::sync::MutexRef<ThrowingMutex>&>().unlock()),
+    std::declval<cms::util::sync::MutexRef<ThrowingMutex>&>().unlock()),
     "MutexRef must preserve a throwing unlock");

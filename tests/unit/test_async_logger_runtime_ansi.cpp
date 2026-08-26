@@ -1,13 +1,13 @@
 #include <cstddef>
 #include <cstdio>
 
-#include <cms/log/ansi_formatter.h>
-#include <cms/log/async_logger.h>
-#include <cms/log/runtime_ansi_formatter.h>
-#include <cms/static_queue.h>
-#include <cms/static_string.h>
-#include <cms/sync/mutex_ref.h>
-#include <cms/sync/null_mutex.h>
+#include <cms/util/log/ansi_formatter.h>
+#include <cms/util/log/async_logger.h>
+#include <cms/util/log/runtime_ansi_formatter.h>
+#include <cms/util/static_queue.h>
+#include <cms/util/static_string.h>
+#include <cms/util/sync/mutex_ref.h>
+#include <cms/util/sync/null_mutex.h>
 
 #include "test.h"
 
@@ -30,7 +30,7 @@ struct CountingMutex {
 };
 
 struct ClockState {
-    cms::log::Timestamp current = 0;
+    cms::util::log::Timestamp current = 0;
     std::size_t calls = 0;
 };
 
@@ -38,7 +38,7 @@ struct CountingClock {
     explicit CountingClock(ClockState& state) noexcept
         : state_(&state) {}
 
-    cms::log::Timestamp nowMilliseconds() noexcept {
+    cms::util::log::Timestamp nowMilliseconds() noexcept {
         ++state_->calls;
         return state_->current;
     }
@@ -48,7 +48,7 @@ private:
 };
 
 struct SinkState {
-    cms::StaticString<128> lines[16];
+    cms::util::StaticString<128> lines[16];
     std::size_t writes = 0;
     CountingMutex* queueMutex = nullptr;
     bool observedLockedMutex = false;
@@ -59,7 +59,7 @@ struct CapturingSink {
     explicit CapturingSink(SinkState& state) noexcept
         : state_(&state) {}
 
-    void write(cms::StringView text) noexcept {
+    void write(cms::util::StringView text) noexcept {
         if (state_->queueMutex != nullptr && state_->queueMutex->locked) {
             state_->observedLockedMutex = true;
         }
@@ -68,7 +68,7 @@ struct CapturingSink {
             return;
         }
         if (state_->lines[state_->writes].assign(text).status
-            != cms::Status::ok) {
+            != cms::util::Status::ok) {
             state_->captureFailed = true;
         }
         ++state_->writes;
@@ -78,7 +78,7 @@ private:
     SinkState* state_;
 };
 
-void checkBytes(cms::StringView actual, cms::StringView expected) {
+void checkBytes(cms::util::StringView actual, cms::util::StringView expected) {
     CMS_TEST_REQUIRE(actual.size() == expected.size());
     if (!expected.empty()) {
         CMS_TEST_REQUIRE(actual.data() != nullptr);
@@ -92,7 +92,7 @@ void checkBytes(cms::StringView actual, cms::StringView expected) {
 void checkLine(
     const SinkState& state,
     std::size_t index,
-    cms::StringView expected) {
+    cms::util::StringView expected) {
     CMS_TEST_REQUIRE(index < state.writes);
     checkBytes(state.lines[index].view(), expected);
 }
@@ -100,13 +100,13 @@ void checkLine(
 } // namespace
 
 int main() {
-    using RuntimeLogger = cms::log::AsyncLogger<
+    using RuntimeLogger = cms::util::log::AsyncLogger<
         16,
         3,
         CountingClock,
         CapturingSink,
-        cms::sync::MutexRef<CountingMutex>,
-        cms::log::RuntimeAnsiFormatter>;
+        cms::util::sync::MutexRef<CountingMutex>,
+        cms::util::log::RuntimeAnsiFormatter>;
 
     ClockState clockState;
     CountingMutex queueMutex;
@@ -115,12 +115,12 @@ int main() {
     RuntimeLogger logger{
         CountingClock(clockState),
         CapturingSink(sinkState),
-        cms::sync::MutexRef<CountingMutex>(queueMutex)};
+        cms::util::sync::MutexRef<CountingMutex>(queueMutex)};
 
     CMS_TEST_CHECK(logger.useColor());
     CMS_TEST_CHECK(logger.capacity() == 3);
     CMS_TEST_CHECK(logger.empty());
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::out_of_range);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::out_of_range);
     CMS_TEST_CHECK(sinkState.writes == 0);
 
     const int locksBeforeSwitch = queueMutex.locks;
@@ -132,20 +132,20 @@ int main() {
 
     char first[] = "one";
     clockState.current = 10;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::info, first)
-        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::info, first)
+        == cms::util::Status::ok);
     first[0] = 'X';
     clockState.current = 999;
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(sinkState, 0, "[10] [INFO] one\n");
     CMS_TEST_CHECK(clockState.calls == 1);
 
     logger.setUseColor(true);
     CMS_TEST_CHECK(logger.useColor());
     clockState.current = 20;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "two")
-        == cms::Status::ok);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::info, "two")
+        == cms::util::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(
         sinkState,
         1,
@@ -154,19 +154,19 @@ int main() {
     logger.setUseColor(false);
     CMS_TEST_CHECK(!logger.useColor());
     clockState.current = 30;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "three")
-        == cms::Status::ok);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::info, "three")
+        == cms::util::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(sinkState, 2, "[30] [INFO] three\n");
 
     char queued[] = "queued";
     clockState.current = 40;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::warning, queued)
-        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::warning, queued)
+        == cms::util::Status::ok);
     queued[0] = 'X';
     logger.setUseColor(true);
     clockState.current = 400;
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(
         sinkState,
         3,
@@ -175,24 +175,24 @@ int main() {
 
     logger.setUseColor(false);
     clockState.current = 50;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::debug, "a")
-        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::debug, "a")
+        == cms::util::Status::ok);
     clockState.current = 51;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "b")
-        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::info, "b")
+        == cms::util::Status::ok);
     clockState.current = 52;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::error, "c")
-        == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::error, "c")
+        == cms::util::Status::ok);
     CMS_TEST_CHECK(logger.full());
     clockState.current = 53;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::critical, "drop")
-        == cms::Status::no_space);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::critical, "drop")
+        == cms::util::Status::no_space);
     CMS_TEST_CHECK(logger.pending() == 3);
 
     logger.setUseColor(true);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(
         sinkState,
         4,
@@ -212,13 +212,13 @@ int main() {
     CMS_TEST_CHECK(!queueMutex.locked);
     CMS_TEST_CHECK(queueMutex.locks == queueMutex.unlocks);
 
-    using NullRuntimeLogger = cms::log::AsyncLogger<
+    using NullRuntimeLogger = cms::util::log::AsyncLogger<
         16,
         1,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex,
-        cms::log::RuntimeAnsiFormatter>;
+        cms::util::sync::NullMutex,
+        cms::util::log::RuntimeAnsiFormatter>;
     ClockState nullClockState;
     nullClockState.current = 77;
     SinkState nullSinkState;
@@ -227,33 +227,33 @@ int main() {
         CapturingSink(nullSinkState)};
     CMS_TEST_CHECK(nullLogger.useColor());
     nullLogger.setUseColor(false);
-    CMS_TEST_CHECK(nullLogger.log(cms::log::Level::critical, "null")
-        == cms::Status::ok);
-    CMS_TEST_CHECK(nullLogger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(nullLogger.log(cms::util::log::Level::critical, "null")
+        == cms::util::Status::ok);
+    CMS_TEST_CHECK(nullLogger.drainOne() == cms::util::Status::ok);
     checkLine(nullSinkState, 0, "[77] [CRITICAL] null\n");
 
-    using MeasuredPlainLogger = cms::log::AsyncLogger<
+    using MeasuredPlainLogger = cms::util::log::AsyncLogger<
         64,
         8,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex>;
-    using MeasuredAnsiLogger = cms::log::AsyncLogger<
+        cms::util::sync::NullMutex>;
+    using MeasuredAnsiLogger = cms::util::log::AsyncLogger<
         64,
         8,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex,
-        cms::log::AnsiFormatter>;
-    using MeasuredRuntimeLogger = cms::log::AsyncLogger<
+        cms::util::sync::NullMutex,
+        cms::util::log::AnsiFormatter>;
+    using MeasuredRuntimeLogger = cms::util::log::AsyncLogger<
         64,
         8,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex,
-        cms::log::RuntimeAnsiFormatter>;
-    using MeasuredRecord = cms::log::StaticRecord<64>;
-    using MeasuredQueue = cms::StaticQueue<MeasuredRecord, 8>;
+        cms::util::sync::NullMutex,
+        cms::util::log::RuntimeAnsiFormatter>;
+    using MeasuredRecord = cms::util::log::StaticRecord<64>;
+    using MeasuredQueue = cms::util::StaticQueue<MeasuredRecord, 8>;
 
     std::printf(
         "sizeof(plain AsyncLogger<64, 8, ...>)=%zu\n",
@@ -265,10 +265,10 @@ int main() {
         "sizeof(runtime ANSI AsyncLogger<64, 8, ...>)=%zu\n",
         sizeof(MeasuredRuntimeLogger));
     std::printf(
-        "sizeof(cms::log::StaticRecord<64>)=%zu\n",
+        "sizeof(cms::util::log::StaticRecord<64>)=%zu\n",
         sizeof(MeasuredRecord));
     std::printf(
-        "sizeof(cms::StaticQueue<StaticRecord<64>, 8>)=%zu\n",
+        "sizeof(cms::util::StaticQueue<StaticRecord<64>, 8>)=%zu\n",
         sizeof(MeasuredQueue));
 
     return cms::test::finish();

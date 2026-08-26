@@ -1,9 +1,10 @@
-#include <cms/log/utc_offset_formatter.h>
+#include <cms/util/log/utc_offset_formatter.h>
 
 #include <cstddef>
 #include <cstdint>
 
 namespace cms {
+namespace util {
 namespace log {
 
 namespace {
@@ -66,4 +67,5 @@ WriteResult formatUtcOffsetTimestamp(
 }
 
 } // namespace log
+} // namespace util
 } // namespace cms

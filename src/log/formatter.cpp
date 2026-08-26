@@ -1,13 +1,14 @@
-#include <cms/log/formatter.h>
+#include <cms/util/log/formatter.h>
 
 #include <cstddef>
 #include <cstring>
 #include <limits>
 
-#include <cms/format.h>
-#include <cms/static_string.h>
+#include <cms/util/format.h>
+#include <cms/util/static_string.h>
 
 namespace cms {
+namespace util {
 namespace log {
 
 namespace {
@@ -61,7 +62,7 @@ WriteResult format(const Record& record, StringBuffer output) noexcept {
     }
 
     StaticString<21> timestamp;
-    const WriteResult timestampResult = cms::format::unsignedInteger(
+    const WriteResult timestampResult = cms::util::format::unsignedInteger(
         record.timestampMilliseconds,
         timestamp.buffer());
     if (timestampResult.status != Status::ok) {
@@ -112,4 +113,5 @@ WriteResult format(const Record& record, StringBuffer output) noexcept {
 }
 
 } // namespace log
+} // namespace util
 } // namespace cms

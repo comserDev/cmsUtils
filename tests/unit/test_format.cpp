@@ -2,16 +2,16 @@
 #include <cstdio>
 #include <limits>
 
-#include <cms/format.h>
-#include <cms/static_string.h>
+#include <cms/util/format.h>
+#include <cms/util/static_string.h>
 
 #include "test.h"
 
 namespace {
 
 void checkResult(
-    const cms::WriteResult& result,
-    cms::Status status,
+    const cms::util::WriteResult& result,
+    cms::util::Status status,
     std::size_t written,
     std::size_t required) {
     CMS_TEST_CHECK(result.status == status);
@@ -20,7 +20,7 @@ void checkResult(
 }
 
 void checkBuffer(
-    cms::StringBuffer output,
+    cms::util::StringBuffer output,
     const char* expected,
     std::size_t expectedSize) {
     CMS_TEST_REQUIRE(output.valid());
@@ -40,10 +40,10 @@ void checkUnsigned(
     std::size_t expectedSize) {
     char storage[32] = "old";
     std::size_t size = 3;
-    cms::StringBuffer output(storage, sizeof(storage), size);
+    cms::util::StringBuffer output(storage, sizeof(storage), size);
     checkResult(
-        cms::format::unsignedInteger(value, output, base, uppercase),
-        cms::Status::ok,
+        cms::util::format::unsignedInteger(value, output, base, uppercase),
+        cms::util::Status::ok,
         expectedSize,
         expectedSize);
     checkBuffer(output, expected, expectedSize);
@@ -57,10 +57,10 @@ void checkSigned(
     std::size_t expectedSize) {
     char storage[32] = "old";
     std::size_t size = 3;
-    cms::StringBuffer output(storage, sizeof(storage), size);
+    cms::util::StringBuffer output(storage, sizeof(storage), size);
     checkResult(
-        cms::format::signedInteger(value, output, base, uppercase),
-        cms::Status::ok,
+        cms::util::format::signedInteger(value, output, base, uppercase),
+        cms::util::Status::ok,
         expectedSize,
         expectedSize);
     checkBuffer(output, expected, expectedSize);
@@ -153,49 +153,49 @@ int main() {
 
     char emptyStorage[8] = "";
     std::size_t emptySize = 0;
-    cms::StringBuffer emptyOutput(
+    cms::util::StringBuffer emptyOutput(
         emptyStorage,
         sizeof(emptyStorage),
         emptySize);
     checkResult(
-        cms::format::unsignedInteger(42, emptyOutput),
-        cms::Status::ok,
+        cms::util::format::unsignedInteger(42, emptyOutput),
+        cms::util::Status::ok,
         2,
         2);
     checkBuffer(emptyOutput, "42", 2);
 
     char exactStorage[3] = "x";
     std::size_t exactSize = 1;
-    cms::StringBuffer exactOutput(exactStorage, sizeof(exactStorage), exactSize);
+    cms::util::StringBuffer exactOutput(exactStorage, sizeof(exactStorage), exactSize);
     checkResult(
-        cms::format::unsignedInteger(42, exactOutput),
-        cms::Status::ok,
+        cms::util::format::unsignedInteger(42, exactOutput),
+        cms::util::Status::ok,
         2,
         2);
     checkBuffer(exactOutput, "42", 2);
 
     char shortStorage[2] = "x";
     std::size_t shortSize = 1;
-    cms::StringBuffer shortOutput(shortStorage, sizeof(shortStorage), shortSize);
+    cms::util::StringBuffer shortOutput(shortStorage, sizeof(shortStorage), shortSize);
     checkResult(
-        cms::format::unsignedInteger(42, shortOutput),
-        cms::Status::no_space,
+        cms::util::format::unsignedInteger(42, shortOutput),
+        cms::util::Status::no_space,
         0,
         2);
     checkBuffer(shortOutput, "x", 1);
 
     char signedMaximumStorage[21] = "";
     std::size_t signedMaximumSize = 0;
-    cms::StringBuffer signedMaximumOutput(
+    cms::util::StringBuffer signedMaximumOutput(
         signedMaximumStorage,
         sizeof(signedMaximumStorage),
         signedMaximumSize);
     CMS_TEST_CHECK(signedMaximumOutput.maxSize() == 20);
     checkResult(
-        cms::format::signedInteger(
+        cms::util::format::signedInteger(
             (std::numeric_limits<std::int64_t>::min)(),
             signedMaximumOutput),
-        cms::Status::ok,
+        cms::util::Status::ok,
         20,
         20);
     checkBuffer(signedMaximumOutput, "-9223372036854775808", 20);
@@ -203,16 +203,16 @@ int main() {
     char signedShortStorage[20] = "old";
     const char signedShortExpected[20] = "old";
     std::size_t signedShortSize = 3;
-    cms::StringBuffer signedShortOutput(
+    cms::util::StringBuffer signedShortOutput(
         signedShortStorage,
         sizeof(signedShortStorage),
         signedShortSize);
     CMS_TEST_CHECK(signedShortOutput.maxSize() == 19);
     checkResult(
-        cms::format::signedInteger(
+        cms::util::format::signedInteger(
             (std::numeric_limits<std::int64_t>::min)(),
             signedShortOutput),
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         0,
         20);
     checkBuffer(signedShortOutput, "old", 3);
@@ -222,16 +222,16 @@ int main() {
 
     char unsignedMaximumStorage[21] = "";
     std::size_t unsignedMaximumSize = 0;
-    cms::StringBuffer unsignedMaximumOutput(
+    cms::util::StringBuffer unsignedMaximumOutput(
         unsignedMaximumStorage,
         sizeof(unsignedMaximumStorage),
         unsignedMaximumSize);
     CMS_TEST_CHECK(unsignedMaximumOutput.maxSize() == 20);
     checkResult(
-        cms::format::unsignedInteger(
+        cms::util::format::unsignedInteger(
             (std::numeric_limits<std::uint64_t>::max)(),
             unsignedMaximumOutput),
-        cms::Status::ok,
+        cms::util::Status::ok,
         20,
         20);
     checkBuffer(unsignedMaximumOutput, "18446744073709551615", 20);
@@ -239,16 +239,16 @@ int main() {
     char unsignedShortStorage[20] = "old";
     const char unsignedShortExpected[20] = "old";
     std::size_t unsignedShortSize = 3;
-    cms::StringBuffer unsignedShortOutput(
+    cms::util::StringBuffer unsignedShortOutput(
         unsignedShortStorage,
         sizeof(unsignedShortStorage),
         unsignedShortSize);
     CMS_TEST_CHECK(unsignedShortOutput.maxSize() == 19);
     checkResult(
-        cms::format::unsignedInteger(
+        cms::util::format::unsignedInteger(
             (std::numeric_limits<std::uint64_t>::max)(),
             unsignedShortOutput),
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         0,
         20);
     checkBuffer(unsignedShortOutput, "old", 3);
@@ -259,77 +259,77 @@ int main() {
 
     char appendStorage[6] = "ab";
     std::size_t appendSize = 2;
-    cms::StringBuffer appendOutput(
+    cms::util::StringBuffer appendOutput(
         appendStorage,
         sizeof(appendStorage),
         appendSize);
     checkResult(
-        cms::format::appendSignedInteger(-42, appendOutput),
-        cms::Status::ok,
+        cms::util::format::appendSignedInteger(-42, appendOutput),
+        cms::util::Status::ok,
         3,
         3);
     checkBuffer(appendOutput, "ab-42", 5);
     checkResult(
-        cms::format::appendUnsignedInteger(10, appendOutput),
-        cms::Status::no_space,
+        cms::util::format::appendUnsignedInteger(10, appendOutput),
+        cms::util::Status::no_space,
         0,
         2);
     checkBuffer(appendOutput, "ab-42", 5);
 
     char unsignedAppendStorage[6] = "id=";
     std::size_t unsignedAppendSize = 3;
-    cms::StringBuffer unsignedAppendOutput(
+    cms::util::StringBuffer unsignedAppendOutput(
         unsignedAppendStorage,
         sizeof(unsignedAppendStorage),
         unsignedAppendSize);
     checkResult(
-        cms::format::appendUnsignedInteger(42, unsignedAppendOutput),
-        cms::Status::ok,
+        cms::util::format::appendUnsignedInteger(42, unsignedAppendOutput),
+        cms::util::Status::ok,
         2,
         2);
     checkBuffer(unsignedAppendOutput, "id=42", 5);
 
-    cms::StaticString<1> tiny;
+    cms::util::StaticString<1> tiny;
     checkResult(
-        cms::format::unsignedInteger(0, tiny.buffer()),
-        cms::Status::no_space,
+        cms::util::format::unsignedInteger(0, tiny.buffer()),
+        cms::util::Status::no_space,
         0,
         1);
     CMS_TEST_CHECK(tiny.empty());
     CMS_TEST_CHECK(tiny.cStr()[0] == '\0');
 
-    cms::StringBuffer defaultOutput;
+    cms::util::StringBuffer defaultOutput;
     checkResult(
-        cms::format::unsignedInteger(1, defaultOutput),
-        cms::Status::invalid_argument,
+        cms::util::format::unsignedInteger(1, defaultOutput),
+        cms::util::Status::invalid_argument,
         0,
         0);
     checkResult(
-        cms::format::signedInteger(-1, defaultOutput),
-        cms::Status::invalid_argument,
+        cms::util::format::signedInteger(-1, defaultOutput),
+        cms::util::Status::invalid_argument,
         0,
         0);
     checkResult(
-        cms::format::appendUnsignedInteger(1, defaultOutput),
-        cms::Status::invalid_argument,
+        cms::util::format::appendUnsignedInteger(1, defaultOutput),
+        cms::util::Status::invalid_argument,
         0,
         0);
     checkResult(
-        cms::format::appendSignedInteger(-1, defaultOutput),
-        cms::Status::invalid_argument,
+        cms::util::format::appendSignedInteger(-1, defaultOutput),
+        cms::util::Status::invalid_argument,
         0,
         0);
 
     char damagedStorage[8] = "old";
     std::size_t damagedSize = 3;
-    cms::StringBuffer damagedOutput(
+    cms::util::StringBuffer damagedOutput(
         damagedStorage,
         sizeof(damagedStorage),
         damagedSize);
     damagedSize = sizeof(damagedStorage);
     checkResult(
-        cms::format::unsignedInteger(1, damagedOutput),
-        cms::Status::invalid_argument,
+        cms::util::format::unsignedInteger(1, damagedOutput),
+        cms::util::Status::invalid_argument,
         0,
         0);
     CMS_TEST_CHECK(damagedSize == sizeof(damagedStorage));
@@ -340,22 +340,22 @@ int main() {
 
     char invalidBaseStorage[8] = "old";
     std::size_t invalidBaseSize = 3;
-    cms::StringBuffer invalidBaseOutput(
+    cms::util::StringBuffer invalidBaseOutput(
         invalidBaseStorage,
         sizeof(invalidBaseStorage),
         invalidBaseSize);
     checkResult(
-        cms::format::unsignedInteger(1, invalidBaseOutput, 2),
-        cms::Status::invalid_argument,
+        cms::util::format::unsignedInteger(1, invalidBaseOutput, 2),
+        cms::util::Status::invalid_argument,
         0,
         0);
     checkResult(
-        cms::format::appendSignedInteger(-1, invalidBaseOutput, 36),
-        cms::Status::invalid_argument,
+        cms::util::format::appendSignedInteger(-1, invalidBaseOutput, 36),
+        cms::util::Status::invalid_argument,
         0,
         0);
     checkBuffer(invalidBaseOutput, "old", 3);
 
-    std::printf("cms::format integer coverage complete\n");
+    std::printf("cms::util::format integer coverage complete\n");
     return cms::test::finish();
 }

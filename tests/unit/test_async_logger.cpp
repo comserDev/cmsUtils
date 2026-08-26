@@ -3,10 +3,10 @@
 #include <cstdio>
 #include <limits>
 
-#include <cms/log/async_logger.h>
-#include <cms/static_string.h>
-#include <cms/sync/mutex_ref.h>
-#include <cms/sync/null_mutex.h>
+#include <cms/util/log/async_logger.h>
+#include <cms/util/static_string.h>
+#include <cms/util/sync/mutex_ref.h>
+#include <cms/util/sync/null_mutex.h>
 
 #include "test.h"
 
@@ -29,7 +29,7 @@ struct CountingMutex {
 };
 
 struct ClockState {
-    cms::log::Timestamp current = 0;
+    cms::util::log::Timestamp current = 0;
     std::size_t calls = 0;
 };
 
@@ -37,7 +37,7 @@ struct CountingClock {
     explicit CountingClock(ClockState& state) noexcept
         : state_(&state) {}
 
-    cms::log::Timestamp nowMilliseconds() noexcept {
+    cms::util::log::Timestamp nowMilliseconds() noexcept {
         ++state_->calls;
         return state_->current;
     }
@@ -47,7 +47,7 @@ private:
 };
 
 struct SinkState {
-    cms::StaticString<128> lines[16];
+    cms::util::StaticString<128> lines[16];
     std::size_t writes = 0;
     CountingMutex* queueMutex = nullptr;
     bool observedLockedMutex = false;
@@ -58,7 +58,7 @@ struct CapturingSink {
     explicit CapturingSink(SinkState& state) noexcept
         : state_(&state) {}
 
-    void write(cms::StringView text) noexcept {
+    void write(cms::util::StringView text) noexcept {
         if (state_->queueMutex != nullptr && state_->queueMutex->locked) {
             state_->observedLockedMutex = true;
         }
@@ -69,7 +69,7 @@ struct CapturingSink {
         }
 
         if (state_->lines[state_->writes].assign(text).status
-            != cms::Status::ok) {
+            != cms::util::Status::ok) {
             state_->captureFailed = true;
         }
         ++state_->writes;
@@ -80,14 +80,14 @@ private:
 };
 
 struct DefaultClock {
-    cms::log::Timestamp nowMilliseconds() noexcept { return 0; }
+    cms::util::log::Timestamp nowMilliseconds() noexcept { return 0; }
 };
 
 struct DiscardSink {
-    void write(cms::StringView) noexcept {}
+    void write(cms::util::StringView) noexcept {}
 };
 
-void checkBytes(cms::StringView actual, cms::StringView expected) {
+void checkBytes(cms::util::StringView actual, cms::util::StringView expected) {
     CMS_TEST_REQUIRE(actual.size() == expected.size());
     if (!expected.empty()) {
         CMS_TEST_REQUIRE(actual.data() != nullptr);
@@ -101,7 +101,7 @@ void checkBytes(cms::StringView actual, cms::StringView expected) {
 void checkLine(
     const SinkState& state,
     std::size_t index,
-    cms::StringView expected) {
+    cms::util::StringView expected) {
     CMS_TEST_REQUIRE(index < state.writes);
     checkBytes(state.lines[index].view(), expected);
 }
@@ -109,12 +109,12 @@ void checkLine(
 } // namespace
 
 int main() {
-    using ExternalLogger = cms::log::AsyncLogger<
+    using ExternalLogger = cms::util::log::AsyncLogger<
         16,
         3,
         CountingClock,
         CapturingSink,
-        cms::sync::MutexRef<CountingMutex>>;
+        cms::util::sync::MutexRef<CountingMutex>>;
 
     ClockState clockState;
     CountingMutex queueMutex;
@@ -123,7 +123,7 @@ int main() {
     ExternalLogger logger{
         CountingClock(clockState),
         CapturingSink(sinkState),
-        cms::sync::MutexRef<CountingMutex>(queueMutex)};
+        cms::util::sync::MutexRef<CountingMutex>(queueMutex)};
 
     CMS_TEST_CHECK(logger.capacity() == 3);
     CMS_TEST_CHECK(logger.pending() == 0);
@@ -131,7 +131,7 @@ int main() {
     CMS_TEST_CHECK(!logger.full());
 
     const std::size_t writesBeforeEmptyDrain = sinkState.writes;
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::out_of_range);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::out_of_range);
     CMS_TEST_CHECK(sinkState.writes == writesBeforeEmptyDrain);
 
     char tooLong[16] = {};
@@ -139,52 +139,52 @@ int main() {
         tooLong[index] = 'x';
     }
     CMS_TEST_CHECK(logger.log(
-        cms::log::Level::info,
-        cms::StringView(tooLong, sizeof(tooLong))) == cms::Status::no_space);
+        cms::util::log::Level::info,
+        cms::util::StringView(tooLong, sizeof(tooLong))) == cms::util::Status::no_space);
     CMS_TEST_CHECK(clockState.calls == 0);
     CMS_TEST_CHECK(logger.pending() == 0);
 
     char source[] = "hello";
     clockState.current = 10;
     CMS_TEST_CHECK(logger.log(
-        cms::log::Level::info,
-        cms::StringView(source)) == cms::Status::ok);
+        cms::util::log::Level::info,
+        cms::util::StringView(source)) == cms::util::Status::ok);
     CMS_TEST_CHECK(clockState.calls == 1);
     source[0] = 'X';
     clockState.current = 999;
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     CMS_TEST_CHECK(clockState.calls == 1);
     CMS_TEST_CHECK(sinkState.writes == 1);
     checkLine(sinkState, 0, "[10] [INFO] hello\n");
     CMS_TEST_CHECK(logger.empty());
 
     clockState.current = 20;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::info, "one") == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::info, "one") == cms::util::Status::ok);
     clockState.current = 21;
-    CMS_TEST_CHECK(logger.log(cms::log::Level::debug, "two") == cms::Status::ok);
+    CMS_TEST_CHECK(logger.log(cms::util::log::Level::debug, "two") == cms::util::Status::ok);
     clockState.current = 22;
     CMS_TEST_CHECK(logger.log(
-        cms::log::Level::warning, "three") == cms::Status::ok);
+        cms::util::log::Level::warning, "three") == cms::util::Status::ok);
     CMS_TEST_CHECK(logger.pending() == 3);
     CMS_TEST_CHECK(logger.full());
 
     clockState.current = 23;
     CMS_TEST_CHECK(logger.log(
-        cms::log::Level::critical, "dropped") == cms::Status::no_space);
+        cms::util::log::Level::critical, "dropped") == cms::util::Status::no_space);
     CMS_TEST_CHECK(clockState.calls == 5);
     CMS_TEST_CHECK(logger.pending() == 3);
 
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(sinkState, 1, "[20] [INFO] one\n");
     CMS_TEST_CHECK(logger.pending() == 2);
 
     clockState.current = 24;
     CMS_TEST_CHECK(logger.log(
-        cms::log::Level::error, "four") == cms::Status::ok);
+        cms::util::log::Level::error, "four") == cms::util::Status::ok);
     CMS_TEST_CHECK(logger.pending() == 3);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::ok);
     checkLine(sinkState, 2, "[21] [DEBUG] two\n");
     checkLine(sinkState, 3, "[22] [WARNING] three\n");
     checkLine(sinkState, 4, "[24] [ERROR] four\n");
@@ -198,15 +198,15 @@ int main() {
     CMS_TEST_CHECK(queueMutex.locks == queueMutex.unlocks);
 
     const std::size_t writesBeforeFinalEmptyDrain = sinkState.writes;
-    CMS_TEST_CHECK(logger.drainOne() == cms::Status::out_of_range);
+    CMS_TEST_CHECK(logger.drainOne() == cms::util::Status::out_of_range);
     CMS_TEST_CHECK(sinkState.writes == writesBeforeFinalEmptyDrain);
 
-    using NullLogger = cms::log::AsyncLogger<
+    using NullLogger = cms::util::log::AsyncLogger<
         16,
         2,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex>;
+        cms::util::sync::NullMutex>;
 
     ClockState nullClockState;
     nullClockState.current = 77;
@@ -215,32 +215,32 @@ int main() {
         CountingClock(nullClockState),
         CapturingSink(nullSinkState)};
     CMS_TEST_CHECK(nullLogger.log(
-        cms::log::Level::warning, "null") == cms::Status::ok);
-    CMS_TEST_CHECK(nullLogger.drainOne() == cms::Status::ok);
+        cms::util::log::Level::warning, "null") == cms::util::Status::ok);
+    CMS_TEST_CHECK(nullLogger.drainOne() == cms::util::Status::ok);
     checkLine(nullSinkState, 0, "[77] [WARNING] null\n");
     CMS_TEST_CHECK(nullClockState.calls == 1);
     CMS_TEST_CHECK(nullSinkState.writes == 1);
     CMS_TEST_CHECK(nullLogger.empty());
 
-    using DefaultLogger = cms::log::AsyncLogger<
+    using DefaultLogger = cms::util::log::AsyncLogger<
         8,
         2,
         DefaultClock,
         DiscardSink,
-        cms::sync::NullMutex>;
+        cms::util::sync::NullMutex>;
     DefaultLogger defaultLogger;
     CMS_TEST_CHECK(defaultLogger.empty());
     CMS_TEST_CHECK(defaultLogger.capacity() == 2);
 
-    using MaximumLogger = cms::log::AsyncLogger<
+    using MaximumLogger = cms::util::log::AsyncLogger<
         64,
         1,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex>;
+        cms::util::sync::NullMutex>;
     ClockState maximumClockState;
     maximumClockState.current =
-        (std::numeric_limits<cms::log::Timestamp>::max)();
+        (std::numeric_limits<cms::util::log::Timestamp>::max)();
     SinkState maximumSinkState;
     MaximumLogger maximumLogger{
         CountingClock(maximumClockState),
@@ -250,42 +250,42 @@ int main() {
         maximumMessage[index] = 'm';
     }
     CMS_TEST_CHECK(maximumLogger.log(
-        cms::log::Level::critical,
-        cms::StringView(maximumMessage, sizeof(maximumMessage)))
-        == cms::Status::ok);
-    CMS_TEST_CHECK(maximumLogger.drainOne() == cms::Status::ok);
+        cms::util::log::Level::critical,
+        cms::util::StringView(maximumMessage, sizeof(maximumMessage)))
+        == cms::util::Status::ok);
+    CMS_TEST_CHECK(maximumLogger.drainOne() == cms::util::Status::ok);
     CMS_TEST_CHECK(maximumClockState.calls == 1);
     CMS_TEST_CHECK(maximumSinkState.writes == 1);
     CMS_TEST_CHECK(!maximumSinkState.captureFailed);
 
-    cms::StaticString<64 + cms::log::maxFormattedRecordOverhead>
+    cms::util::StaticString<64 + cms::util::log::maxFormattedRecordOverhead>
         maximumExpected;
     CMS_TEST_REQUIRE(maximumExpected.assign(
-        "[18446744073709551615] [CRITICAL] ").status == cms::Status::ok);
+        "[18446744073709551615] [CRITICAL] ").status == cms::util::Status::ok);
     CMS_TEST_REQUIRE(maximumExpected.append(
-        cms::StringView(maximumMessage, sizeof(maximumMessage))).status
-        == cms::Status::ok);
-    CMS_TEST_REQUIRE(maximumExpected.append("\n").status == cms::Status::ok);
+        cms::util::StringView(maximumMessage, sizeof(maximumMessage))).status
+        == cms::util::Status::ok);
+    CMS_TEST_REQUIRE(maximumExpected.append("\n").status == cms::util::Status::ok);
     CMS_TEST_CHECK(maximumExpected.size() == 98);
     checkLine(maximumSinkState, 0, maximumExpected.view());
 
-    using MeasuredLogger = cms::log::AsyncLogger<
+    using MeasuredLogger = cms::util::log::AsyncLogger<
         64,
         8,
         CountingClock,
         CapturingSink,
-        cms::sync::NullMutex>;
+        cms::util::sync::NullMutex>;
     std::printf(
-        "sizeof(cms::log::AsyncLogger<64, 8, CountingClock, "
+        "sizeof(cms::util::log::AsyncLogger<64, 8, CountingClock, "
         "CapturingSink, NullMutex>)=%zu\n",
         sizeof(MeasuredLogger));
     std::printf(
         "drain local StaticRecord<64> storage=%zu\n",
-        sizeof(cms::log::StaticRecord<64>));
+        sizeof(cms::util::log::StaticRecord<64>));
     std::printf(
         "drain local formatted line storage=%zu\n",
-        sizeof(cms::StaticString<
-            64 + cms::log::maxFormattedRecordOverhead>));
+        sizeof(cms::util::StaticString<
+            64 + cms::util::log::maxFormattedRecordOverhead>));
 
     return cms::test::finish();
 }

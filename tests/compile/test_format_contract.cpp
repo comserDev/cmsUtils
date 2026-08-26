@@ -1,36 +1,36 @@
 #include <cstdint>
 #include <type_traits>
 
-#include <cms/format.h>
+#include <cms/util/format.h>
 
-using UnsignedFormat = cms::WriteResult (*)(
+using UnsignedFormat = cms::util::WriteResult (*)(
     std::uint64_t,
-    cms::StringBuffer,
+    cms::util::StringBuffer,
     unsigned int,
     bool) noexcept;
-using SignedFormat = cms::WriteResult (*)(
+using SignedFormat = cms::util::WriteResult (*)(
     std::int64_t,
-    cms::StringBuffer,
+    cms::util::StringBuffer,
     unsigned int,
     bool) noexcept;
 
 static_assert(
     std::is_same<
-        decltype(&cms::format::unsignedInteger),
+        decltype(&cms::util::format::unsignedInteger),
         UnsignedFormat>::value,
     "unsignedInteger has the wrong signature");
 static_assert(
     std::is_same<
-        decltype(&cms::format::signedInteger),
+        decltype(&cms::util::format::signedInteger),
         SignedFormat>::value,
     "signedInteger has the wrong signature");
 static_assert(
     std::is_same<
-        decltype(&cms::format::appendUnsignedInteger),
+        decltype(&cms::util::format::appendUnsignedInteger),
         UnsignedFormat>::value,
     "appendUnsignedInteger has the wrong signature");
 static_assert(
     std::is_same<
-        decltype(&cms::format::appendSignedInteger),
+        decltype(&cms::util::format::appendSignedInteger),
         SignedFormat>::value,
     "appendSignedInteger has the wrong signature");

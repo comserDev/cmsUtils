@@ -1,5 +1,5 @@
-#include <cms/log/clock.h>
+#include <cms/util/log/clock.h>
 
 static_assert(
-    sizeof(cms::log::Timestamp) > 0,
+    sizeof(cms::util::log::Timestamp) > 0,
     "clock.h must compile independently");

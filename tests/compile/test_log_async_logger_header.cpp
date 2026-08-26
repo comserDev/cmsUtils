@@ -1,11 +1,11 @@
-#include <cms/log/async_logger.h>
+#include <cms/util/log/async_logger.h>
 
 struct HeaderClock {
-    cms::log::Timestamp nowMilliseconds() noexcept { return 0; }
+    cms::util::log::Timestamp nowMilliseconds() noexcept { return 0; }
 };
 
 struct HeaderSink {
-    void write(cms::StringView) noexcept {}
+    void write(cms::util::StringView) noexcept {}
 };
 
 struct HeaderMutex {
@@ -13,7 +13,7 @@ struct HeaderMutex {
     void unlock() noexcept {}
 };
 
-using HeaderLogger = cms::log::AsyncLogger<
+using HeaderLogger = cms::util::log::AsyncLogger<
     8, 2, HeaderClock, HeaderSink, HeaderMutex>;
 
 static_assert(

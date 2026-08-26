@@ -1,14 +1,14 @@
 #include <cstdio>
 #include <utility>
 
-#include <cms/static_string.h>
+#include <cms/util/static_string.h>
 
 #include "test.h"
 
 namespace {
 
 template<std::size_t StorageBytes>
-void checkInvariant(const cms::StaticString<StorageBytes>& value) {
+void checkInvariant(const cms::util::StaticString<StorageBytes>& value) {
     CMS_TEST_REQUIRE(value.cStr() != nullptr);
     CMS_TEST_REQUIRE(value.data() != nullptr);
     CMS_TEST_REQUIRE(value.size() < value.capacity());
@@ -22,7 +22,7 @@ void checkInvariant(const cms::StaticString<StorageBytes>& value) {
 
 template<std::size_t StorageBytes>
 void checkContent(
-    const cms::StaticString<StorageBytes>& value,
+    const cms::util::StaticString<StorageBytes>& value,
     const char* expected,
     std::size_t expectedSize) {
     checkInvariant(value);
@@ -37,8 +37,8 @@ void checkContent(
 }
 
 void checkResult(
-    const cms::WriteResult& result,
-    cms::Status status,
+    const cms::util::WriteResult& result,
+    cms::util::Status status,
     std::size_t written,
     std::size_t required) {
     CMS_TEST_CHECK(result.status == status);
@@ -49,195 +49,195 @@ void checkResult(
 } // namespace
 
 int main() {
-    cms::StaticString<8> basic;
+    cms::util::StaticString<8> basic;
     checkContent(basic, nullptr, 0);
     CMS_TEST_CHECK(basic.capacity() == 8);
     CMS_TEST_CHECK(basic.maxSize() == 7);
 
-    cms::StaticString<1> tiny;
+    cms::util::StaticString<1> tiny;
     checkContent(tiny, nullptr, 0);
     CMS_TEST_CHECK(tiny.capacity() == 1);
     CMS_TEST_CHECK(tiny.maxSize() == 0);
     checkResult(
-        tiny.assign(cms::StringView("x")),
-        cms::Status::no_space,
+        tiny.assign(cms::util::StringView("x")),
+        cms::util::Status::no_space,
         0,
         1);
     checkContent(tiny, nullptr, 0);
     checkResult(
-        tiny.assignTruncated(cms::StringView("x")),
-        cms::Status::no_space,
+        tiny.assignTruncated(cms::util::StringView("x")),
+        cms::util::Status::no_space,
         0,
         1);
     checkContent(tiny, nullptr, 0);
     checkResult(
-        tiny.append(cms::StringView("x")),
-        cms::Status::no_space,
+        tiny.append(cms::util::StringView("x")),
+        cms::util::Status::no_space,
         0,
         1);
     checkContent(tiny, nullptr, 0);
     checkResult(
-        tiny.appendTruncated(cms::StringView("x")),
-        cms::Status::no_space,
+        tiny.appendTruncated(cms::util::StringView("x")),
+        cms::util::Status::no_space,
         0,
         1);
     checkContent(tiny, nullptr, 0);
 
     checkResult(
-        basic.assign(cms::StringView("old")),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView("old")),
+        cms::util::Status::ok,
         3,
         3);
     basic.clear();
     checkContent(basic, nullptr, 0);
 
     checkResult(
-        basic.assign(cms::StringView("old")),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView("old")),
+        cms::util::Status::ok,
         3,
         3);
     checkResult(
-        basic.assign(cms::StringView()),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView()),
+        cms::util::Status::ok,
         0,
         0);
     checkContent(basic, nullptr, 0);
 
     const char exactPayload[] = {'1', '2', '3', '4', '5', '6', '7'};
     checkResult(
-        basic.assign(cms::StringView(exactPayload, sizeof(exactPayload))),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView(exactPayload, sizeof(exactPayload))),
+        cms::util::Status::ok,
         sizeof(exactPayload),
         sizeof(exactPayload));
     checkContent(basic, exactPayload, sizeof(exactPayload));
 
     const char tooLarge[] = {'1', '2', '3', '4', '5', '6', '7', '8'};
     checkResult(
-        basic.assign(cms::StringView(tooLarge, sizeof(tooLarge))),
-        cms::Status::no_space,
+        basic.assign(cms::util::StringView(tooLarge, sizeof(tooLarge))),
+        cms::util::Status::no_space,
         0,
         sizeof(tooLarge));
     checkContent(basic, exactPayload, sizeof(exactPayload));
 
     checkResult(
-        basic.assign(cms::StringView("keep")),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView("keep")),
+        cms::util::Status::ok,
         4,
         4);
     checkResult(
-        basic.assign(cms::StringView(tooLarge, sizeof(tooLarge))),
-        cms::Status::no_space,
+        basic.assign(cms::util::StringView(tooLarge, sizeof(tooLarge))),
+        cms::util::Status::no_space,
         0,
         sizeof(tooLarge));
     checkContent(basic, "keep", 4);
     checkResult(
-        basic.assign(cms::StringView("new")),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView("new")),
+        cms::util::Status::ok,
         3,
         3);
     checkContent(basic, "new", 3);
 
     const char embeddedNul[] = {'A', '\0', 'B'};
     checkResult(
-        basic.assign(cms::StringView(embeddedNul, sizeof(embeddedNul))),
-        cms::Status::ok,
+        basic.assign(cms::util::StringView(embeddedNul, sizeof(embeddedNul))),
+        cms::util::Status::ok,
         sizeof(embeddedNul),
         sizeof(embeddedNul));
     checkContent(basic, embeddedNul, sizeof(embeddedNul));
 
-    cms::StaticString<8> appended;
+    cms::util::StaticString<8> appended;
     checkResult(
-        appended.append(cms::StringView("ab")),
-        cms::Status::ok,
+        appended.append(cms::util::StringView("ab")),
+        cms::util::Status::ok,
         2,
         2);
     checkContent(appended, "ab", 2);
     checkResult(
-        appended.append(cms::StringView("cd")),
-        cms::Status::ok,
+        appended.append(cms::util::StringView("cd")),
+        cms::util::Status::ok,
         2,
         2);
     checkContent(appended, "abcd", 4);
     checkResult(
-        appended.append(cms::StringView("efg")),
-        cms::Status::ok,
+        appended.append(cms::util::StringView("efg")),
+        cms::util::Status::ok,
         3,
         3);
     checkContent(appended, "abcdefg", 7);
     checkResult(
-        appended.append(cms::StringView("x")),
-        cms::Status::no_space,
+        appended.append(cms::util::StringView("x")),
+        cms::util::Status::no_space,
         0,
         1);
     checkContent(appended, "abcdefg", 7);
     checkResult(
-        appended.append(cms::StringView()),
-        cms::Status::ok,
+        appended.append(cms::util::StringView()),
+        cms::util::Status::ok,
         0,
         0);
     checkContent(appended, "abcdefg", 7);
 
-    cms::StaticString<8> truncated;
+    cms::util::StaticString<8> truncated;
     checkResult(
-        truncated.assignTruncated(cms::StringView("fit")),
-        cms::Status::ok,
+        truncated.assignTruncated(cms::util::StringView("fit")),
+        cms::util::Status::ok,
         3,
         3);
     checkContent(truncated, "fit", 3);
     const char longPayload[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
     checkResult(
         truncated.assignTruncated(
-            cms::StringView(longPayload, sizeof(longPayload))),
-        cms::Status::no_space,
+            cms::util::StringView(longPayload, sizeof(longPayload))),
+        cms::util::Status::no_space,
         7,
         sizeof(longPayload));
     checkContent(truncated, "abcdefg", 7);
 
     truncated.clear();
     checkResult(
-        truncated.appendTruncated(cms::StringView("ab")),
-        cms::Status::ok,
+        truncated.appendTruncated(cms::util::StringView("ab")),
+        cms::util::Status::ok,
         2,
         2);
     checkResult(
-        truncated.appendTruncated(cms::StringView("cd")),
-        cms::Status::ok,
+        truncated.appendTruncated(cms::util::StringView("cd")),
+        cms::util::Status::ok,
         2,
         2);
     checkContent(truncated, "abcd", 4);
     checkResult(
-        truncated.appendTruncated(cms::StringView("WXYZ")),
-        cms::Status::no_space,
+        truncated.appendTruncated(cms::util::StringView("WXYZ")),
+        cms::util::Status::no_space,
         3,
         4);
     checkContent(truncated, "abcdWXY", 7);
     checkResult(
-        truncated.appendTruncated(cms::StringView("z")),
-        cms::Status::no_space,
+        truncated.appendTruncated(cms::util::StringView("z")),
+        cms::util::Status::no_space,
         0,
         1);
     checkContent(truncated, "abcdWXY", 7);
     checkResult(
-        truncated.appendTruncated(cms::StringView()),
-        cms::Status::ok,
+        truncated.appendTruncated(cms::util::StringView()),
+        cms::util::Status::ok,
         0,
         0);
     checkContent(truncated, "abcdWXY", 7);
 
-    cms::StaticString<16> copySource;
+    cms::util::StaticString<16> copySource;
     checkResult(
-        copySource.assign(cms::StringView("abc")),
-        cms::Status::ok,
+        copySource.assign(cms::util::StringView("abc")),
+        cms::util::Status::ok,
         3,
         3);
-    cms::StaticString<16> copyConstructed(copySource);
+    cms::util::StaticString<16> copyConstructed(copySource);
     CMS_TEST_CHECK(copyConstructed.cStr() != copySource.cStr());
     checkContent(copyConstructed, "abc", 3);
     copyConstructed.clear();
     checkContent(copySource, "abc", 3);
 
-    cms::StaticString<16> copyAssigned;
-    cms::StringBuffer copyDestinationAlias = copyAssigned.buffer();
+    cms::util::StaticString<16> copyAssigned;
+    cms::util::StringBuffer copyDestinationAlias = copyAssigned.buffer();
     const char* copyDestinationStorage = copyAssigned.cStr();
     copyAssigned = copySource;
     CMS_TEST_CHECK(copyAssigned.cStr() != copySource.cStr());
@@ -248,41 +248,41 @@ int main() {
     CMS_TEST_CHECK(copyDestinationAlias.size() == 3);
     CMS_TEST_CHECK(copyDestinationAlias.valid());
     checkResult(
-        copyAssigned.assign(cms::StringView("xyz")),
-        cms::Status::ok,
+        copyAssigned.assign(cms::util::StringView("xyz")),
+        cms::util::Status::ok,
         3,
         3);
     checkContent(copySource, "abc", 3);
 
-    cms::StaticString<16> moveSource;
+    cms::util::StaticString<16> moveSource;
     checkResult(
-        moveSource.assign(cms::StringView("move")),
-        cms::Status::ok,
+        moveSource.assign(cms::util::StringView("move")),
+        cms::util::Status::ok,
         4,
         4);
-    cms::StringBuffer oldMoveBuffer = moveSource.buffer();
+    cms::util::StringBuffer oldMoveBuffer = moveSource.buffer();
     const char* oldMoveStorage = moveSource.cStr();
-    cms::StaticString<16> moveConstructed(std::move(moveSource));
+    cms::util::StaticString<16> moveConstructed(std::move(moveSource));
     CMS_TEST_CHECK(moveConstructed.cStr() != oldMoveStorage);
     checkContent(moveConstructed, "move", 4);
     checkContent(moveSource, nullptr, 0);
     CMS_TEST_CHECK(oldMoveBuffer.data() == oldMoveStorage);
     CMS_TEST_CHECK(oldMoveBuffer.size() == 0);
 
-    cms::StaticString<16> moveAssignSource;
+    cms::util::StaticString<16> moveAssignSource;
     checkResult(
-        moveAssignSource.assign(cms::StringView("move")),
-        cms::Status::ok,
+        moveAssignSource.assign(cms::util::StringView("move")),
+        cms::util::Status::ok,
         4,
         4);
-    cms::StringBuffer moveSourceAlias = moveAssignSource.buffer();
+    cms::util::StringBuffer moveSourceAlias = moveAssignSource.buffer();
     const char* moveAssignSourceStorage = moveAssignSource.cStr();
-    cms::StaticString<16> moveAssigned;
-    cms::StringBuffer moveDestinationAlias = moveAssigned.buffer();
+    cms::util::StaticString<16> moveAssigned;
+    cms::util::StringBuffer moveDestinationAlias = moveAssigned.buffer();
     const char* moveDestinationStorage = moveAssigned.cStr();
     checkResult(
-        moveAssigned.assign(cms::StringView("old")),
-        cms::Status::ok,
+        moveAssigned.assign(cms::util::StringView("old")),
+        cms::util::Status::ok,
         3,
         3);
     moveAssigned = std::move(moveAssignSource);
@@ -303,13 +303,13 @@ int main() {
     CMS_TEST_CHECK(moveAssigned.cStr() == selfMoveStorage);
     checkContent(moveAssigned, "move", 4);
 
-    cms::StaticString<16> viewed;
+    cms::util::StaticString<16> viewed;
     checkResult(
-        viewed.assign(cms::StringView("snapshot")),
-        cms::Status::ok,
+        viewed.assign(cms::util::StringView("snapshot")),
+        cms::util::Status::ok,
         8,
         8);
-    const cms::StringView snapshot = viewed.view();
+    const cms::util::StringView snapshot = viewed.view();
     CMS_TEST_REQUIRE(snapshot.size() == 8);
     CMS_TEST_CHECK(snapshot.data() == viewed.cStr());
     viewed.clear();
@@ -318,111 +318,111 @@ int main() {
     CMS_TEST_CHECK(snapshot[0] == '\0');
     checkContent(viewed, nullptr, 0);
 
-    cms::StaticString<16> buffered;
-    cms::StringBuffer bufferA = buffered.buffer();
-    cms::StringBuffer bufferB = buffered.buffer();
+    cms::util::StaticString<16> buffered;
+    cms::util::StringBuffer bufferA = buffered.buffer();
+    cms::util::StringBuffer bufferB = buffered.buffer();
     CMS_TEST_REQUIRE(bufferA.valid());
     CMS_TEST_REQUIRE(bufferB.valid());
     bufferA.data()[0] = 'A';
     bufferA.data()[1] = 'B';
-    CMS_TEST_CHECK(bufferA.commit(2) == cms::Status::ok);
+    CMS_TEST_CHECK(bufferA.commit(2) == cms::util::Status::ok);
     CMS_TEST_CHECK(buffered.size() == 2);
     CMS_TEST_CHECK(bufferB.size() == 2);
     checkContent(buffered, "AB", 2);
-    CMS_TEST_CHECK(bufferB.clear() == cms::Status::ok);
+    CMS_TEST_CHECK(bufferB.clear() == cms::util::Status::ok);
     CMS_TEST_CHECK(buffered.empty());
     CMS_TEST_CHECK(bufferA.size() == 0);
     checkContent(buffered, nullptr, 0);
 
-    cms::StaticString<16> alias;
+    cms::util::StaticString<16> alias;
     checkResult(
-        alias.assign(cms::StringView("abcdef")),
-        cms::Status::ok,
+        alias.assign(cms::util::StringView("abcdef")),
+        cms::util::Status::ok,
         6,
         6);
     checkResult(
         alias.assign(alias.view()),
-        cms::Status::ok,
+        cms::util::Status::ok,
         6,
         6);
     checkContent(alias, "abcdef", 6);
     checkResult(
         alias.append(alias.view()),
-        cms::Status::ok,
+        cms::util::Status::ok,
         6,
         6);
     checkContent(alias, "abcdefabcdef", 12);
 
     checkResult(
-        alias.assign(cms::StringView("abcdef")),
-        cms::Status::ok,
+        alias.assign(cms::util::StringView("abcdef")),
+        cms::util::Status::ok,
         6,
         6);
-    const cms::StringView assignPart(alias.cStr() + 2, 3);
-    checkResult(alias.assign(assignPart), cms::Status::ok, 3, 3);
+    const cms::util::StringView assignPart(alias.cStr() + 2, 3);
+    checkResult(alias.assign(assignPart), cms::util::Status::ok, 3, 3);
     checkContent(alias, "cde", 3);
 
     checkResult(
-        alias.assign(cms::StringView("abcdef")),
-        cms::Status::ok,
+        alias.assign(cms::util::StringView("abcdef")),
+        cms::util::Status::ok,
         6,
         6);
-    const cms::StringView appendPart(alias.cStr() + 1, 3);
-    checkResult(alias.append(appendPart), cms::Status::ok, 3, 3);
+    const cms::util::StringView appendPart(alias.cStr() + 1, 3);
+    checkResult(alias.append(appendPart), cms::util::Status::ok, 3, 3);
     checkContent(alias, "abcdefbcd", 9);
 
-    cms::StaticString<8> truncatedAlias;
+    cms::util::StaticString<8> truncatedAlias;
     checkResult(
-        truncatedAlias.assign(cms::StringView("abcdefg")),
-        cms::Status::ok,
+        truncatedAlias.assign(cms::util::StringView("abcdefg")),
+        cms::util::Status::ok,
         7,
         7);
-    const cms::StringView fullStorage(
+    const cms::util::StringView fullStorage(
         truncatedAlias.cStr(),
         truncatedAlias.capacity());
     checkResult(
         truncatedAlias.assignTruncated(fullStorage),
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         7,
         8);
     checkContent(truncatedAlias, "abcdefg", 7);
 
     checkResult(
-        truncatedAlias.assign(cms::StringView("abcde")),
-        cms::Status::ok,
+        truncatedAlias.assign(cms::util::StringView("abcde")),
+        cms::util::Status::ok,
         5,
         5);
-    const cms::StringView appendSelf = truncatedAlias.view();
+    const cms::util::StringView appendSelf = truncatedAlias.view();
     checkResult(
         truncatedAlias.appendTruncated(appendSelf),
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         2,
         5);
     checkContent(truncatedAlias, "abcdeab", 7);
 
     checkResult(
-        truncatedAlias.assign(cms::StringView("abcde")),
-        cms::Status::ok,
+        truncatedAlias.assign(cms::util::StringView("abcde")),
+        cms::util::Status::ok,
         5,
         5);
     checkResult(
         truncatedAlias.append(truncatedAlias.view()),
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         0,
         5);
     checkContent(truncatedAlias, "abcde", 5);
 
     std::printf(
-        "sizeof(cms::StaticString<1>)=%zu\n",
-        sizeof(cms::StaticString<1>));
+        "sizeof(cms::util::StaticString<1>)=%zu\n",
+        sizeof(cms::util::StaticString<1>));
     std::printf(
-        "sizeof(cms::StaticString<8>)=%zu\n",
-        sizeof(cms::StaticString<8>));
+        "sizeof(cms::util::StaticString<8>)=%zu\n",
+        sizeof(cms::util::StaticString<8>));
     std::printf(
-        "sizeof(cms::StaticString<32>)=%zu\n",
-        sizeof(cms::StaticString<32>));
+        "sizeof(cms::util::StaticString<32>)=%zu\n",
+        sizeof(cms::util::StaticString<32>));
     std::printf(
-        "sizeof(cms::StaticString<64>)=%zu\n",
-        sizeof(cms::StaticString<64>));
+        "sizeof(cms::util::StaticString<64>)=%zu\n",
+        sizeof(cms::util::StaticString<64>));
     return cms::test::finish();
 }

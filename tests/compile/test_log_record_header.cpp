@@ -1,5 +1,5 @@
-#include <cms/log/record.h>
+#include <cms/util/log/record.h>
 
 static_assert(
-    sizeof(cms::log::StaticRecord<8>) > 0,
+    sizeof(cms::util::log::StaticRecord<8>) > 0,
     "record.h must compile independently");

@@ -1,6 +1,6 @@
-# cms-embedded-utils API Reference
+# cmsUtils API Reference
 
-이 문서는 `cms-embedded-utils` 라이브러리에서 제공하는 주요 클래스 및 함수의 상세 명세입니다. 모든 컴포넌트는 임베디드 환경 최적화를 위해 동적 메모리 할당을 사용하지 않습니다.
+이 문서는 범용 C++ utility library인 `cmsUtils`가 제공하는 주요 클래스 및 함수의 상세 명세입니다. fixed-capacity 컴포넌트는 deterministic / zero-heap contract를 유지하고, host-oriented 컴포넌트는 동적 메모리 등 필요한 resource 사용 여부를 각 API contract에서 구분합니다. 따라서 라이브러리 전체가 항상 zero-heap이라고 가정하지 않습니다.
 
 ---
 

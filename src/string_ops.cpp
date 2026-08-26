@@ -1,9 +1,10 @@
-#include <cms/string_ops.h>
+#include <cms/util/string_ops.h>
 
 #include <cstring>
 #include <limits>
 
 namespace cms {
+namespace util {
 namespace string {
 
 namespace {
@@ -265,4 +266,5 @@ WriteResult replaceAll(
 }
 
 } // namespace string
+} // namespace util
 } // namespace cms

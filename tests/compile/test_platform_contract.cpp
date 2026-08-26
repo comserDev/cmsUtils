@@ -2,20 +2,20 @@
 #include <type_traits>
 #include <utility>
 
-#include <cms/log/async_logger.h>
-#include <cms/platform/arduino_serial_sink.h>
-#include <cms/platform/std_mutex.h>
-#include <cms/platform/stdout_sink.h>
-#include <cms/platform/steady_clock.h>
+#include <cms/util/log/async_logger.h>
+#include <cms/util/platform/arduino_serial_sink.h>
+#include <cms/util/platform/std_mutex.h>
+#include <cms/util/platform/stdout_sink.h>
+#include <cms/util/platform/steady_clock.h>
 
 namespace {
 
 struct TestClock {
-    cms::log::Timestamp nowMilliseconds() noexcept { return 0; }
+    cms::util::log::Timestamp nowMilliseconds() noexcept { return 0; }
 };
 
 struct TestSink {
-    void write(cms::StringView) noexcept {}
+    void write(cms::util::StringView) noexcept {}
 };
 
 struct TestSerial {
@@ -26,21 +26,21 @@ struct TestSerial {
     std::size_t write(const unsigned char*, std::size_t) { return 0; }
 };
 
-using StdLogger = cms::log::AsyncLogger<
+using StdLogger = cms::util::log::AsyncLogger<
     16,
     2,
     TestClock,
     TestSink,
-    cms::platform::StdMutex>;
-using SerialSink = cms::platform::ArduinoSerialSink<TestSerial>;
+    cms::util::platform::StdMutex>;
+using SerialSink = cms::util::platform::ArduinoSerialSink<TestSerial>;
 
 } // namespace
 
-static_assert(std::is_default_constructible<cms::platform::StdMutex>::value,
+static_assert(std::is_default_constructible<cms::util::platform::StdMutex>::value,
     "StdMutex must be default constructible");
-static_assert(!std::is_copy_constructible<cms::platform::StdMutex>::value,
+static_assert(!std::is_copy_constructible<cms::util::platform::StdMutex>::value,
     "StdMutex copy must be deleted");
-static_assert(!std::is_move_constructible<cms::platform::StdMutex>::value,
+static_assert(!std::is_move_constructible<cms::util::platform::StdMutex>::value,
     "StdMutex move must be deleted");
 static_assert(std::is_default_constructible<StdLogger>::value,
     "StdMutex must integrate with AsyncLogger");
@@ -49,11 +49,11 @@ static_assert(std::is_constructible<StdLogger, TestClock, TestSink>::value,
 static_assert(std::is_constructible<SerialSink, TestSerial&>::value,
     "ArduinoSerialSink must bind a Serial-like reference");
 static_assert(std::is_same<
-    decltype(std::declval<cms::platform::SteadyClock&>().nowMilliseconds()),
-    cms::log::Timestamp>::value,
+    decltype(std::declval<cms::util::platform::SteadyClock&>().nowMilliseconds()),
+    cms::util::log::Timestamp>::value,
     "SteadyClock must return Timestamp");
 static_assert(std::is_same<
-    decltype(std::declval<cms::platform::StdoutSink&>().write(
-        cms::StringView())),
+    decltype(std::declval<cms::util::platform::StdoutSink&>().write(
+        cms::util::StringView())),
     void>::value,
     "StdoutSink write must return void");

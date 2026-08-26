@@ -1,5 +1,5 @@
-#include <cms/platform/steady_clock.h>
+#include <cms/util/platform/steady_clock.h>
 
 static_assert(
-    sizeof(cms::platform::SteadyClock) > 0,
+    sizeof(cms::util::platform::SteadyClock) > 0,
     "steady_clock.h must compile independently");

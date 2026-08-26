@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @author comser.dev
- * @brief cms-embedded-utils 라이브러리 종합 사용 예제
+ * @brief cmsUtils 라이브러리 종합 사용 예제
  *
  * 이 예제는 문자열 조작, 스레드 안전 큐, 그리고 비동기 로거의
  * 기본적인 사용법을 보여줍니다.

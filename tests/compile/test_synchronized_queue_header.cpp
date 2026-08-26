@@ -1,4 +1,4 @@
-#include <cms/synchronized_queue.h>
+#include <cms/util/sync/synchronized_queue.h>
 
 struct HeaderQueue {
     std::size_t size() const noexcept { return 0; }
@@ -13,7 +13,7 @@ struct HeaderMutex {
 };
 
 using HeaderSynchronizedQueue =
-    cms::SynchronizedQueue<HeaderQueue, HeaderMutex>;
+    cms::util::sync::SynchronizedQueue<HeaderQueue, HeaderMutex>;
 
 static_assert(
     sizeof(HeaderSynchronizedQueue) > 0,

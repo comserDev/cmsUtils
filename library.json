@@ -1,11 +1,11 @@
 {
-  "name": "cms-embedded-utils",
+  "name": "cmsUtils",
   "version": "1.0.0",
-  "description": "A collection of high-performance, zero-heap utilities for embedded systems. Includes UTF-8 safe strings, thread-safe circular queues, and a lightweight asynchronous logger designed for deterministic memory usage without dynamic allocation.",
+  "description": "A general-purpose C++ utility library with explicit deterministic zero-heap paths and opt-in host convenience components. Includes UTF-8 strings, fixed-capacity queues, and configurable logging.",
   "keywords": "embedded, utility, string, utf8, queue, logger, heapless, esp32, async-logging",
   "repository": {
     "type": "git",
-    "url": "https://github.com/comserDev/cms-embedded-utils.git"
+    "url": "https://github.com/comserDev/cmsUtils.git"
   },
   "authors": [
     {

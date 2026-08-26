@@ -1,56 +1,56 @@
 #include <cstddef>
 #include <type_traits>
 
-#include <cms/string_ops.h>
+#include <cms/util/string_ops.h>
 
 static_assert(
-    std::is_same<decltype(cms::string::npos), const std::size_t>::value,
+    std::is_same<decltype(cms::util::string::npos), const std::size_t>::value,
     "npos has the wrong type");
 
-using Compare = int (*)(cms::StringView, cms::StringView) noexcept;
-using Predicate = bool (*)(cms::StringView, cms::StringView) noexcept;
+using Compare = int (*)(cms::util::StringView, cms::util::StringView) noexcept;
+using Predicate = bool (*)(cms::util::StringView, cms::util::StringView) noexcept;
 using Find = std::size_t (*)(
-    cms::StringView,
-    cms::StringView,
+    cms::util::StringView,
+    cms::util::StringView,
     std::size_t) noexcept;
-using FindLast = std::size_t (*)(cms::StringView, cms::StringView) noexcept;
-using Write = cms::WriteResult (*)(cms::StringView, cms::StringBuffer) noexcept;
-using ReplaceAll = cms::WriteResult (*)(
-    cms::StringView,
-    cms::StringView,
-    cms::StringView,
-    cms::StringBuffer) noexcept;
+using FindLast = std::size_t (*)(cms::util::StringView, cms::util::StringView) noexcept;
+using Write = cms::util::WriteResult (*)(cms::util::StringView, cms::util::StringBuffer) noexcept;
+using ReplaceAll = cms::util::WriteResult (*)(
+    cms::util::StringView,
+    cms::util::StringView,
+    cms::util::StringView,
+    cms::util::StringBuffer) noexcept;
 
 static_assert(
-    std::is_same<decltype(&cms::string::compare), Compare>::value,
+    std::is_same<decltype(&cms::util::string::compare), Compare>::value,
     "compare has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::equals), Predicate>::value,
+    std::is_same<decltype(&cms::util::string::equals), Predicate>::value,
     "equals has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::startsWith), Predicate>::value,
+    std::is_same<decltype(&cms::util::string::startsWith), Predicate>::value,
     "startsWith has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::endsWith), Predicate>::value,
+    std::is_same<decltype(&cms::util::string::endsWith), Predicate>::value,
     "endsWith has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::find), Find>::value,
+    std::is_same<decltype(&cms::util::string::find), Find>::value,
     "find has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::findLast), FindLast>::value,
+    std::is_same<decltype(&cms::util::string::findLast), FindLast>::value,
     "findLast has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::copy), Write>::value,
+    std::is_same<decltype(&cms::util::string::copy), Write>::value,
     "copy has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::copyTruncated), Write>::value,
+    std::is_same<decltype(&cms::util::string::copyTruncated), Write>::value,
     "copyTruncated has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::append), Write>::value,
+    std::is_same<decltype(&cms::util::string::append), Write>::value,
     "append has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::appendTruncated), Write>::value,
+    std::is_same<decltype(&cms::util::string::appendTruncated), Write>::value,
     "appendTruncated has the wrong signature");
 static_assert(
-    std::is_same<decltype(&cms::string::replaceAll), ReplaceAll>::value,
+    std::is_same<decltype(&cms::util::string::replaceAll), ReplaceAll>::value,
     "replaceAll has the wrong signature");

@@ -1,4 +1,4 @@
-#include <cms/sync/lock_guard.h>
+#include <cms/util/sync/lock_guard.h>
 
 struct HeaderMutex {
     void lock() noexcept {}
@@ -6,5 +6,5 @@ struct HeaderMutex {
 };
 
 static_assert(
-    sizeof(cms::sync::LockGuard<HeaderMutex>) > 0,
+    sizeof(cms::util::sync::LockGuard<HeaderMutex>) > 0,
     "lock_guard.h must compile independently");

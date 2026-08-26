@@ -3,11 +3,11 @@
 #include <limits>
 #include <type_traits>
 
-#include <cms/platform/arduino_millis_clock.h>
-#include <cms/platform/arduino_serial_sink.h>
-#include <cms/platform/freertos_static_mutex.h>
-#include <cms/static_queue.h>
-#include <cms/synchronized_queue.h>
+#include <cms/util/platform/arduino_millis_clock.h>
+#include <cms/util/platform/arduino_serial_sink.h>
+#include <cms/util/platform/freertos_static_mutex.h>
+#include <cms/util/static_queue.h>
+#include <cms/util/sync/synchronized_queue.h>
 
 #include "test.h"
 
@@ -36,18 +36,18 @@ struct FakeSerial {
 
 int main() {
     FakeSerial serial;
-    cms::platform::ArduinoSerialSink<FakeSerial> serialSink(serial);
+    cms::util::platform::ArduinoSerialSink<FakeSerial> serialSink(serial);
     const char payload[] = {'A', '\0', 'B'};
-    serialSink.write(cms::StringView(payload, sizeof(payload)));
+    serialSink.write(cms::util::StringView(payload, sizeof(payload)));
     CMS_TEST_CHECK(serial.calls == 1);
     CMS_TEST_CHECK(serial.receivedSize == sizeof(payload));
     CMS_TEST_CHECK(serial.bytes[0] == 'A');
     CMS_TEST_CHECK(serial.bytes[1] == 0);
     CMS_TEST_CHECK(serial.bytes[2] == 'B');
-    serialSink.write(cms::StringView());
+    serialSink.write(cms::util::StringView());
     CMS_TEST_CHECK(serial.calls == 1);
 
-    cms::platform::ArduinoMillisClock millisClock;
+    cms::util::platform::ArduinoMillisClock millisClock;
     cms_test_arduino::setMillis(0);
     CMS_TEST_CHECK(millisClock.nowMilliseconds() == 0);
     cms_test_arduino::setMillis(123456UL);
@@ -59,18 +59,18 @@ int main() {
         == (std::numeric_limits<std::uint32_t>::max)());
 
     static_assert(std::is_default_constructible<
-        cms::platform::FreeRtosStaticMutex>::value,
+        cms::util::platform::FreeRtosStaticMutex>::value,
         "FreeRtosStaticMutex must be default constructible");
     static_assert(!std::is_copy_constructible<
-        cms::platform::FreeRtosStaticMutex>::value,
+        cms::util::platform::FreeRtosStaticMutex>::value,
         "FreeRtosStaticMutex copy must be deleted");
     static_assert(!std::is_move_constructible<
-        cms::platform::FreeRtosStaticMutex>::value,
+        cms::util::platform::FreeRtosStaticMutex>::value,
         "FreeRtosStaticMutex move must be deleted");
 
     cms_test_freertos::reset();
     {
-        cms::platform::FreeRtosStaticMutex mutex;
+        cms::util::platform::FreeRtosStaticMutex mutex;
         CMS_TEST_CHECK(cms_test_freertos::createCalls == 1);
         CMS_TEST_REQUIRE(cms_test_freertos::createdStorage != nullptr);
         mutex.lock();
@@ -93,7 +93,7 @@ int main() {
     cms_test_freertos::reset();
     cms_test_freertos::takeFailuresBeforeSuccess = 1;
     {
-        cms::platform::FreeRtosStaticMutex retryingMutex;
+        cms::util::platform::FreeRtosStaticMutex retryingMutex;
         retryingMutex.lock();
         CMS_TEST_CHECK(cms_test_freertos::takeCalls == 2);
         CMS_TEST_CHECK(
@@ -107,14 +107,14 @@ int main() {
     CMS_TEST_CHECK(cms_test_freertos::deleteCalls == 1);
 
     cms_test_freertos::reset();
-    using Queue = cms::StaticQueue<int, 1>;
+    using Queue = cms::util::StaticQueue<int, 1>;
     {
-        cms::SynchronizedQueue<
+        cms::util::sync::SynchronizedQueue<
             Queue,
-            cms::platform::FreeRtosStaticMutex> queue;
-        CMS_TEST_CHECK(queue.push(9) == cms::Status::ok);
+            cms::util::platform::FreeRtosStaticMutex> queue;
+        CMS_TEST_CHECK(queue.push(9) == cms::util::Status::ok);
         CMS_TEST_CHECK(queue.full());
-        CMS_TEST_CHECK(queue.pop() == cms::Status::ok);
+        CMS_TEST_CHECK(queue.pop() == cms::util::Status::ok);
         CMS_TEST_CHECK(queue.empty());
     }
     CMS_TEST_CHECK(cms_test_freertos::createCalls == 1);

@@ -1,13 +1,13 @@
-#include <cms/status.h>
+#include <cms/util/status.h>
 
-constexpr cms::WriteResult headerWriteResult{
-    cms::Status::ok,
+constexpr cms::util::WriteResult headerWriteResult{
+    cms::util::Status::ok,
     1,
     1
 };
 
-constexpr cms::ParseResult<int> headerParseResult{
-    cms::Status::ok,
+constexpr cms::util::ParseResult<int> headerParseResult{
+    cms::util::Status::ok,
     7,
     1
 };

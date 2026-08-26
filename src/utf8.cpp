@@ -1,10 +1,11 @@
-#include <cms/utf8.h>
+#include <cms/util/utf8.h>
 
 #include <limits>
 
-#include <cms/detail/utf8_decoder.h>
+#include <cms/util/detail/utf8_decoder.h>
 
 namespace cms {
+namespace util {
 namespace utf8 {
 
 namespace {
@@ -181,4 +182,5 @@ WriteResult sanitize(StringView input, StringBuffer output) noexcept {
 }
 
 } // namespace utf8
+} // namespace util
 } // namespace cms

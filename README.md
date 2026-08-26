@@ -1,8 +1,8 @@
-# cms-embedded-utils
+# cmsUtils
 
-**High-performance, Zero-Heap, Deterministic Utilities for Embedded Systems.**
+**General-purpose C++ Utilities with Deterministic / Zero-Heap Paths.**
 
-`cms-embedded-utils`는 자원이 제한된 임베디드 환경(ESP32, STM32, Arduino 등)에서 힙 파편화(Heap Fragmentation) 없이 안전하고 예측 가능한 시스템을 구축하기 위한 C++ 유틸리티 모음입니다. 모든 컴포넌트는 동적 메모리 할당을 배제하고 정적 버퍼를 기반으로 동작합니다.
+`cmsUtils`는 embedded와 host 환경에서 함께 사용할 수 있는 범용 C++ utility library입니다. Fixed-capacity 기반의 deterministic / zero-heap 경로를 보존하면서, host convenience 기능은 명시적인 opt-in component로 확장합니다.
 
 ## 🛠 Technical Highlights / 주요 특징
 
@@ -19,7 +19,7 @@ Add the repository URL to your `platformio.ini`: / `platformio.ini` 파일의 `l
 
 ```ini
 lib_deps =
-    https://github.com/comserDev/cms-embedded-utils.git
+    https://github.com/comserDev/cmsUtils.git
 ```
 
 ## 🚀 빠른 시작
@@ -129,4 +129,4 @@ build_flags =
 
 ---
 **Maintainer:** comser.dev
-**Repository:** github.com/comserDev/cms-embedded-utils
+**Repository:** github.com/comserDev/cmsUtils

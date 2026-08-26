@@ -3,29 +3,29 @@
 #include <type_traits>
 #include <utility>
 
-#include <cms/log/ansi_formatter.h>
-#include <cms/log/async_logger.h>
-#include <cms/log/clock.h>
-#include <cms/log/formatter.h>
-#include <cms/log/full_queue_policy.h>
-#include <cms/log/level.h>
-#include <cms/log/level_filter.h>
-#include <cms/log/record.h>
-#include <cms/log/runtime_ansi_formatter.h>
-#include <cms/log/styled_ansi_formatter.h>
-#include <cms/platform/std_mutex.h>
-#include <cms/static_string.h>
-#include <cms/sync/mutex_ref.h>
-#include <cms/sync/null_mutex.h>
+#include <cms/util/log/ansi_formatter.h>
+#include <cms/util/log/async_logger.h>
+#include <cms/util/log/clock.h>
+#include <cms/util/log/formatter.h>
+#include <cms/util/log/full_queue_policy.h>
+#include <cms/util/log/level.h>
+#include <cms/util/log/level_filter.h>
+#include <cms/util/log/record.h>
+#include <cms/util/log/runtime_ansi_formatter.h>
+#include <cms/util/log/styled_ansi_formatter.h>
+#include <cms/util/platform/std_mutex.h>
+#include <cms/util/static_string.h>
+#include <cms/util/sync/mutex_ref.h>
+#include <cms/util/sync/null_mutex.h>
 
 namespace {
 
 struct TestClock {
-    cms::log::Timestamp nowMilliseconds() noexcept { return 0; }
+    cms::util::log::Timestamp nowMilliseconds() noexcept { return 0; }
 };
 
 struct TestSink {
-    void write(cms::StringView) noexcept {}
+    void write(cms::util::StringView) noexcept {}
 };
 
 struct ExternalMutex {
@@ -118,7 +118,7 @@ template<class Type>
 struct HasSetMinLevel<
     Type,
     std::void_t<decltype(std::declval<Type&>().setMinLevel(
-        cms::log::Level::warning))>> : std::true_type {};
+        cms::util::log::Level::warning))>> : std::true_type {};
 
 template<class Type, class = void>
 struct HasMinLevel : std::false_type {};
@@ -165,145 +165,145 @@ struct HasLoggingEnabled<
     std::void_t<decltype(std::declval<const Type&>().loggingEnabled())>>
     : std::true_type {};
 
-using StaticRecord = cms::log::StaticRecord<16>;
-using Logger = cms::log::AsyncLogger<
-    16, 4, TestClock, TestSink, cms::sync::NullMutex>;
-using ExplicitPlainLogger = cms::log::AsyncLogger<
+using StaticRecord = cms::util::log::StaticRecord<16>;
+using Logger = cms::util::log::AsyncLogger<
+    16, 4, TestClock, TestSink, cms::util::sync::NullMutex>;
+using ExplicitPlainLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::PlainFormatter>;
-using ExplicitPlainNoFilterLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter>;
+using ExplicitPlainNoFilterLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::PlainFormatter,
-    cms::log::NoLevelFilter>;
-using ExplicitRejectLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter,
+    cms::util::log::NoLevelFilter>;
+using ExplicitRejectLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::PlainFormatter,
-    cms::log::NoLevelFilter,
-    cms::log::RejectOnFull>;
-using OverwriteLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter,
+    cms::util::log::NoLevelFilter,
+    cms::util::log::RejectOnFull>;
+using OverwriteLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::PlainFormatter,
-    cms::log::NoLevelFilter,
-    cms::log::OverwriteOldestOnFull>;
-using AnsiLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter,
+    cms::util::log::NoLevelFilter,
+    cms::util::log::OverwriteOldestOnFull>;
+using AnsiLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::AnsiFormatter>;
-using ExplicitAnsiNoFilterLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::AnsiFormatter>;
+using ExplicitAnsiNoFilterLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::AnsiFormatter,
-    cms::log::NoLevelFilter>;
-using RuntimeAnsiLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::AnsiFormatter,
+    cms::util::log::NoLevelFilter>;
+using RuntimeAnsiLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::RuntimeAnsiFormatter>;
-using ExplicitRuntimeAnsiNoFilterLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::RuntimeAnsiFormatter>;
+using ExplicitRuntimeAnsiNoFilterLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::RuntimeAnsiFormatter,
-    cms::log::NoLevelFilter>;
-using StyledLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::RuntimeAnsiFormatter,
+    cms::util::log::NoLevelFilter>;
+using StyledLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::StyledAnsiFormatter>;
-using RuntimeStyledLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::StyledAnsiFormatter>;
+using RuntimeStyledLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::RuntimeStyledAnsiFormatter>;
-using RuntimeLevelPlainLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::RuntimeStyledAnsiFormatter>;
+using RuntimeLevelPlainLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::PlainFormatter,
-    cms::log::RuntimeLevelFilter>;
-using RuntimeLevelAnsiLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter,
+    cms::util::log::RuntimeLevelFilter>;
+using RuntimeLevelAnsiLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::AnsiFormatter,
-    cms::log::RuntimeLevelFilter>;
-using RuntimeLevelRuntimeAnsiLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::AnsiFormatter,
+    cms::util::log::RuntimeLevelFilter>;
+using RuntimeLevelRuntimeAnsiLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::RuntimeAnsiFormatter,
-    cms::log::RuntimeLevelFilter>;
-using RuntimeLevelRuntimeStyledLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::RuntimeAnsiFormatter,
+    cms::util::log::RuntimeLevelFilter>;
+using RuntimeLevelRuntimeStyledLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::sync::NullMutex,
-    cms::log::RuntimeStyledAnsiFormatter,
-    cms::log::RuntimeLevelFilter>;
-using StdMutexRuntimeLogger = cms::log::AsyncLogger<
+    cms::util::sync::NullMutex,
+    cms::util::log::RuntimeStyledAnsiFormatter,
+    cms::util::log::RuntimeLevelFilter>;
+using StdMutexRuntimeLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::platform::StdMutex,
-    cms::log::RuntimeAnsiFormatter>;
-using StdMutexRuntimeLevelLogger = cms::log::AsyncLogger<
+    cms::util::platform::StdMutex,
+    cms::util::log::RuntimeAnsiFormatter>;
+using StdMutexRuntimeLevelLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
-    cms::platform::StdMutex,
-    cms::log::PlainFormatter,
-    cms::log::RuntimeLevelFilter>;
-using NonMovableLogger = cms::log::AsyncLogger<
+    cms::util::platform::StdMutex,
+    cms::util::log::PlainFormatter,
+    cms::util::log::RuntimeLevelFilter>;
+using NonMovableLogger = cms::util::log::AsyncLogger<
     16, 4, TestClock, TestSink, NonMovableMutex>;
-using NonMovableRuntimeLevelLogger = cms::log::AsyncLogger<
+using NonMovableRuntimeLevelLogger = cms::util::log::AsyncLogger<
     16,
     4,
     TestClock,
     TestSink,
     NonMovableMutex,
-    cms::log::PlainFormatter,
-    cms::log::RuntimeLevelFilter>;
-using MutexRef = cms::sync::MutexRef<ExternalMutex>;
-using ReferencedLogger = cms::log::AsyncLogger<
+    cms::util::log::PlainFormatter,
+    cms::util::log::RuntimeLevelFilter>;
+using MutexRef = cms::util::sync::MutexRef<ExternalMutex>;
+using ReferencedLogger = cms::util::log::AsyncLogger<
     16, 4, TestClock, TestSink, MutexRef>;
 
 constexpr StaticRecord recordContract;
@@ -312,34 +312,34 @@ constexpr StaticRecord recordContract;
 
 static_assert(
     std::is_same<
-        std::underlying_type<cms::log::Level>::type,
+        std::underlying_type<cms::util::log::Level>::type,
         std::uint8_t>::value,
     "Level must use uint8_t");
-static_assert(static_cast<std::uint8_t>(cms::log::Level::trace) == 0,
+static_assert(static_cast<std::uint8_t>(cms::util::log::Level::trace) == 0,
     "trace ordering changed");
-static_assert(static_cast<std::uint8_t>(cms::log::Level::debug) == 1,
+static_assert(static_cast<std::uint8_t>(cms::util::log::Level::debug) == 1,
     "debug ordering changed");
-static_assert(static_cast<std::uint8_t>(cms::log::Level::info) == 2,
+static_assert(static_cast<std::uint8_t>(cms::util::log::Level::info) == 2,
     "info ordering changed");
-static_assert(static_cast<std::uint8_t>(cms::log::Level::warning) == 3,
+static_assert(static_cast<std::uint8_t>(cms::util::log::Level::warning) == 3,
     "warning ordering changed");
-static_assert(static_cast<std::uint8_t>(cms::log::Level::error) == 4,
+static_assert(static_cast<std::uint8_t>(cms::util::log::Level::error) == 4,
     "error ordering changed");
-static_assert(static_cast<std::uint8_t>(cms::log::Level::critical) == 5,
+static_assert(static_cast<std::uint8_t>(cms::util::log::Level::critical) == 5,
     "critical ordering changed");
-static_assert(std::is_same<cms::log::Timestamp, std::uint64_t>::value,
+static_assert(std::is_same<cms::util::log::Timestamp, std::uint64_t>::value,
     "Timestamp must use uint64_t");
-static_assert(cms::log::maxFormattedRecordOverhead == 35,
+static_assert(cms::util::log::maxFormattedRecordOverhead == 35,
     "formatted overhead contract changed");
-static_assert(cms::log::PlainFormatter::maxOverhead == 35,
+static_assert(cms::util::log::PlainFormatter::maxOverhead == 35,
     "plain formatter overhead contract changed");
-static_assert(cms::log::AnsiFormatter::maxOverhead == 43,
+static_assert(cms::util::log::AnsiFormatter::maxOverhead == 43,
     "ANSI formatter overhead contract changed");
-static_assert(cms::log::RuntimeAnsiFormatter::maxOverhead == 43,
+static_assert(cms::util::log::RuntimeAnsiFormatter::maxOverhead == 43,
     "runtime ANSI formatter overhead contract changed");
-static_assert(cms::log::maxStyledMessageExpansionFactor == 4,
+static_assert(cms::util::log::maxStyledMessageExpansionFactor == 4,
     "styled message expansion contract changed");
-static_assert(cms::log::styledFormattedStorageAdjustment == 40,
+static_assert(cms::util::log::styledFormattedStorageAdjustment == 40,
     "styled line storage adjustment changed");
 static_assert(std::is_same<Logger, ExplicitPlainLogger>::value,
     "five-parameter logger must keep the plain formatter default");
@@ -349,9 +349,9 @@ static_assert(std::is_same<Logger, ExplicitRejectLogger>::value,
     "seven-parameter logger must keep reject-on-full as the default");
 static_assert(!std::is_same<Logger, OverwriteLogger>::value,
     "overwrite-oldest behavior must require explicit selection");
-static_assert(std::is_empty<cms::log::RejectOnFull>::value,
+static_assert(std::is_empty<cms::util::log::RejectOnFull>::value,
     "reject-on-full policy must remain stateless");
-static_assert(std::is_empty<cms::log::OverwriteOldestOnFull>::value,
+static_assert(std::is_empty<cms::util::log::OverwriteOldestOnFull>::value,
     "overwrite-oldest policy must remain stateless");
 static_assert(!std::is_same<Logger, AnsiLogger>::value,
     "ANSI formatter must require explicit selection");
@@ -364,123 +364,123 @@ static_assert(std::is_same<
     ExplicitRuntimeAnsiNoFilterLogger>::value,
     "six-parameter runtime ANSI logger must keep the no-filter default");
 static_assert(std::is_same<
-    decltype(cms::log::PlainFormatter::format(
-        std::declval<const cms::log::Record&>(),
-        cms::StringBuffer())),
-    cms::WriteResult>::value,
+    decltype(cms::util::log::PlainFormatter::format(
+        std::declval<const cms::util::log::Record&>(),
+        cms::util::StringBuffer())),
+    cms::util::WriteResult>::value,
     "PlainFormatter must return WriteResult");
 static_assert(std::is_same<
-    decltype(cms::log::AnsiFormatter::format(
-        std::declval<const cms::log::Record&>(),
-        cms::StringBuffer())),
-    cms::WriteResult>::value,
+    decltype(cms::util::log::AnsiFormatter::format(
+        std::declval<const cms::util::log::Record&>(),
+        cms::util::StringBuffer())),
+    cms::util::WriteResult>::value,
     "AnsiFormatter must return WriteResult");
-static_assert(noexcept(cms::log::PlainFormatter::format(
-    std::declval<const cms::log::Record&>(),
-    cms::StringBuffer())),
+static_assert(noexcept(cms::util::log::PlainFormatter::format(
+    std::declval<const cms::util::log::Record&>(),
+    cms::util::StringBuffer())),
     "PlainFormatter must preserve noexcept");
-static_assert(noexcept(cms::log::AnsiFormatter::format(
-    std::declval<const cms::log::Record&>(),
-    cms::StringBuffer())),
+static_assert(noexcept(cms::util::log::AnsiFormatter::format(
+    std::declval<const cms::util::log::Record&>(),
+    cms::util::StringBuffer())),
     "AnsiFormatter must preserve noexcept");
 static_assert(std::is_nothrow_default_constructible<
-    cms::log::RuntimeAnsiFormatter>::value,
+    cms::util::log::RuntimeAnsiFormatter>::value,
     "RuntimeAnsiFormatter construction must preserve noexcept");
 static_assert(std::is_same<
-    decltype(std::declval<const cms::log::RuntimeAnsiFormatter&>().format(
-        std::declval<const cms::log::Record&>(),
-        cms::StringBuffer())),
-    cms::WriteResult>::value,
+    decltype(std::declval<const cms::util::log::RuntimeAnsiFormatter&>().format(
+        std::declval<const cms::util::log::Record&>(),
+        cms::util::StringBuffer())),
+    cms::util::WriteResult>::value,
     "RuntimeAnsiFormatter must return WriteResult");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeAnsiFormatter&>().format(
-        std::declval<const cms::log::Record&>(),
-        cms::StringBuffer())),
+    std::declval<const cms::util::log::RuntimeAnsiFormatter&>().format(
+        std::declval<const cms::util::log::Record&>(),
+        cms::util::StringBuffer())),
     "RuntimeAnsiFormatter format must preserve noexcept");
 static_assert(noexcept(
-    std::declval<cms::log::RuntimeAnsiFormatter&>().setUseColor(true)),
+    std::declval<cms::util::log::RuntimeAnsiFormatter&>().setUseColor(true)),
     "RuntimeAnsiFormatter setUseColor must preserve noexcept");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeAnsiFormatter&>().useColor()),
+    std::declval<const cms::util::log::RuntimeAnsiFormatter&>().useColor()),
     "RuntimeAnsiFormatter useColor must preserve noexcept");
-static_assert(std::is_empty<cms::log::StyledAnsiFormatter>::value,
+static_assert(std::is_empty<cms::util::log::StyledAnsiFormatter>::value,
     "StyledAnsiFormatter must remain stateless");
 static_assert(std::is_same<
-    decltype(cms::log::StyledAnsiFormatter::format(
-        std::declval<const cms::log::Record&>(),
-        cms::StringBuffer())),
-    cms::WriteResult>::value,
+    decltype(cms::util::log::StyledAnsiFormatter::format(
+        std::declval<const cms::util::log::Record&>(),
+        cms::util::StringBuffer())),
+    cms::util::WriteResult>::value,
     "StyledAnsiFormatter must return WriteResult");
-static_assert(noexcept(cms::log::StyledAnsiFormatter::format(
-    std::declval<const cms::log::Record&>(),
-    cms::StringBuffer())),
+static_assert(noexcept(cms::util::log::StyledAnsiFormatter::format(
+    std::declval<const cms::util::log::Record&>(),
+    cms::util::StringBuffer())),
     "StyledAnsiFormatter must preserve noexcept");
 static_assert(std::is_nothrow_default_constructible<
-    cms::log::RuntimeStyledAnsiFormatter>::value,
+    cms::util::log::RuntimeStyledAnsiFormatter>::value,
     "RuntimeStyledAnsiFormatter construction must preserve noexcept");
 static_assert(std::is_same<
-    decltype(std::declval<const cms::log::RuntimeStyledAnsiFormatter&>()
+    decltype(std::declval<const cms::util::log::RuntimeStyledAnsiFormatter&>()
         .format(
-            std::declval<const cms::log::Record&>(),
-            cms::StringBuffer())),
-    cms::WriteResult>::value,
+            std::declval<const cms::util::log::Record&>(),
+            cms::util::StringBuffer())),
+    cms::util::WriteResult>::value,
     "RuntimeStyledAnsiFormatter must return WriteResult");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeStyledAnsiFormatter&>().format(
-        std::declval<const cms::log::Record&>(),
-        cms::StringBuffer())),
+    std::declval<const cms::util::log::RuntimeStyledAnsiFormatter&>().format(
+        std::declval<const cms::util::log::Record&>(),
+        cms::util::StringBuffer())),
     "RuntimeStyledAnsiFormatter format must preserve noexcept");
 static_assert(noexcept(
-    std::declval<cms::log::RuntimeStyledAnsiFormatter&>().setUseColor(true)),
+    std::declval<cms::util::log::RuntimeStyledAnsiFormatter&>().setUseColor(true)),
     "RuntimeStyledAnsiFormatter setUseColor must preserve noexcept");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeStyledAnsiFormatter&>().useColor()),
+    std::declval<const cms::util::log::RuntimeStyledAnsiFormatter&>().useColor()),
     "RuntimeStyledAnsiFormatter useColor must preserve noexcept");
-static_assert(std::is_empty<cms::log::NoLevelFilter>::value,
+static_assert(std::is_empty<cms::util::log::NoLevelFilter>::value,
     "NoLevelFilter must remain stateless");
 static_assert(std::is_nothrow_default_constructible<
-    cms::log::RuntimeLevelFilter>::value,
+    cms::util::log::RuntimeLevelFilter>::value,
     "RuntimeLevelFilter construction must preserve noexcept");
 static_assert(std::is_same<
-    decltype(cms::log::NoLevelFilter::allows(cms::log::Level::info)),
+    decltype(cms::util::log::NoLevelFilter::allows(cms::util::log::Level::info)),
     bool>::value, "NoLevelFilter allows has the wrong return type");
 static_assert(noexcept(
-    cms::log::NoLevelFilter::allows(cms::log::Level::info)),
+    cms::util::log::NoLevelFilter::allows(cms::util::log::Level::info)),
     "NoLevelFilter allows must preserve noexcept");
 static_assert(std::is_same<
-    decltype(std::declval<cms::log::RuntimeLevelFilter&>().setMinLevel(
-        cms::log::Level::warning)),
+    decltype(std::declval<cms::util::log::RuntimeLevelFilter&>().setMinLevel(
+        cms::util::log::Level::warning)),
     void>::value, "RuntimeLevelFilter setMinLevel has the wrong return type");
 static_assert(std::is_same<
-    decltype(std::declval<const cms::log::RuntimeLevelFilter&>().minLevel()),
-    cms::log::Level>::value,
+    decltype(std::declval<const cms::util::log::RuntimeLevelFilter&>().minLevel()),
+    cms::util::log::Level>::value,
     "RuntimeLevelFilter minLevel has the wrong return type");
 static_assert(std::is_same<
-    decltype(std::declval<const cms::log::RuntimeLevelFilter&>().allows(
-        cms::log::Level::warning)),
+    decltype(std::declval<const cms::util::log::RuntimeLevelFilter&>().allows(
+        cms::util::log::Level::warning)),
     bool>::value, "RuntimeLevelFilter allows has the wrong return type");
 static_assert(noexcept(
-    std::declval<cms::log::RuntimeLevelFilter&>().setMinLevel(
-        cms::log::Level::warning)),
+    std::declval<cms::util::log::RuntimeLevelFilter&>().setMinLevel(
+        cms::util::log::Level::warning)),
     "RuntimeLevelFilter setMinLevel must preserve noexcept");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeLevelFilter&>().minLevel()),
+    std::declval<const cms::util::log::RuntimeLevelFilter&>().minLevel()),
     "RuntimeLevelFilter minLevel must preserve noexcept");
 static_assert(std::is_same<
-    decltype(std::declval<cms::log::RuntimeLevelFilter&>().setEnabled(true)),
+    decltype(std::declval<cms::util::log::RuntimeLevelFilter&>().setEnabled(true)),
     void>::value, "RuntimeLevelFilter setEnabled has the wrong return type");
 static_assert(std::is_same<
-    decltype(std::declval<const cms::log::RuntimeLevelFilter&>().enabled()),
+    decltype(std::declval<const cms::util::log::RuntimeLevelFilter&>().enabled()),
     bool>::value, "RuntimeLevelFilter enabled has the wrong return type");
 static_assert(noexcept(
-    std::declval<cms::log::RuntimeLevelFilter&>().setEnabled(true)),
+    std::declval<cms::util::log::RuntimeLevelFilter&>().setEnabled(true)),
     "RuntimeLevelFilter setEnabled must preserve noexcept");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeLevelFilter&>().enabled()),
+    std::declval<const cms::util::log::RuntimeLevelFilter&>().enabled()),
     "RuntimeLevelFilter enabled must preserve noexcept");
 static_assert(noexcept(
-    std::declval<const cms::log::RuntimeLevelFilter&>().allows(
-        cms::log::Level::warning)),
+    std::declval<const cms::util::log::RuntimeLevelFilter&>().allows(
+        cms::util::log::Level::warning)),
     "RuntimeLevelFilter allows must preserve noexcept");
 
 static_assert(recordContract.messageCapacity() == 16,
@@ -489,22 +489,22 @@ static_assert(recordContract.maxMessageSize() == 15,
     "maximum message payload is capacity minus one");
 static_assert(std::is_same<
     decltype(std::declval<const StaticRecord&>().level()),
-    cms::log::Level>::value, "level has the wrong return type");
+    cms::util::log::Level>::value, "level has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<const StaticRecord&>().timestampMilliseconds()),
-    cms::log::Timestamp>::value, "timestamp has the wrong return type");
+    cms::util::log::Timestamp>::value, "timestamp has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<const StaticRecord&>().message()),
-    cms::StringView>::value, "message has the wrong return type");
+    cms::util::StringView>::value, "message has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<const StaticRecord&>().view()),
-    cms::log::Record>::value, "view has the wrong return type");
+    cms::util::log::Record>::value, "view has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<StaticRecord&>().assign(
-        cms::log::Level::info,
-        cms::log::Timestamp{0},
-        cms::StringView())),
-    cms::WriteResult>::value, "assign has the wrong return type");
+        cms::util::log::Level::info,
+        cms::util::log::Timestamp{0},
+        cms::util::StringView())),
+    cms::util::WriteResult>::value, "assign has the wrong return type");
 static_assert(std::is_nothrow_copy_constructible<StaticRecord>::value,
     "StaticRecord copy construction must remain noexcept");
 static_assert(std::is_nothrow_move_constructible<StaticRecord>::value,
@@ -590,26 +590,26 @@ static_assert(!std::is_move_assignable<RuntimeLevelPlainLogger>::value,
 
 static_assert(std::is_same<
     decltype(std::declval<Logger&>().log(
-        cms::log::Level::info, cms::StringView())),
-    cms::Status>::value, "log has the wrong return type");
+        cms::util::log::Level::info, cms::util::StringView())),
+    cms::util::Status>::value, "log has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<const Logger&>().wouldLog(
-        cms::log::Level::info)),
+        cms::util::log::Level::info)),
     bool>::value, "wouldLog has the wrong return type");
 static_assert(noexcept(std::declval<const Logger&>().wouldLog(
-    cms::log::Level::info)),
+    cms::util::log::Level::info)),
     "wouldLog must preserve the filter noexcept contract");
 static_assert(std::is_same<
     decltype(std::declval<const RuntimeLevelPlainLogger&>().wouldLog(
-        cms::log::Level::warning)),
+        cms::util::log::Level::warning)),
     bool>::value, "runtime-filter wouldLog has the wrong return type");
 static_assert(noexcept(
     std::declval<const RuntimeLevelPlainLogger&>().wouldLog(
-        cms::log::Level::warning)),
+        cms::util::log::Level::warning)),
     "runtime-filter wouldLog must preserve noexcept");
 static_assert(std::is_same<
     decltype(std::declval<Logger&>().drainOne()),
-    cms::Status>::value, "drainOne has the wrong return type");
+    cms::util::Status>::value, "drainOne has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<const Logger&>().pending()),
     std::size_t>::value, "pending has the wrong return type");
@@ -686,14 +686,14 @@ static_assert(HasLoggingEnabled<RuntimeLevelPlainLogger>::value,
     "runtime level logger must expose loggingEnabled");
 static_assert(std::is_same<
     decltype(std::declval<RuntimeLevelPlainLogger&>().setMinLevel(
-        cms::log::Level::warning)),
+        cms::util::log::Level::warning)),
     void>::value, "logger setMinLevel has the wrong return type");
 static_assert(std::is_same<
     decltype(std::declval<const RuntimeLevelPlainLogger&>().minLevel()),
-    cms::log::Level>::value, "logger minLevel has the wrong return type");
+    cms::util::log::Level>::value, "logger minLevel has the wrong return type");
 static_assert(noexcept(
     std::declval<RuntimeLevelPlainLogger&>().setMinLevel(
-        cms::log::Level::warning)),
+        cms::util::log::Level::warning)),
     "logger setMinLevel must preserve noexcept");
 static_assert(noexcept(
     std::declval<const RuntimeLevelPlainLogger&>().minLevel()),

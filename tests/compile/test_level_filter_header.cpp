@@ -1,6 +1,6 @@
-#include <cms/log/level_filter.h>
+#include <cms/util/log/level_filter.h>
 
 int main() {
-    cms::log::RuntimeLevelFilter filter;
-    return filter.allows(cms::log::Level::debug) ? 0 : 1;
+    cms::util::log::RuntimeLevelFilter filter;
+    return filter.allows(cms::util::log::Level::debug) ? 0 : 1;
 }

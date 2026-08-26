@@ -3,18 +3,18 @@
 #include <cstdio>
 #include <limits>
 
-#include <cms/log/ansi_formatter.h>
-#include <cms/log/formatter.h>
-#include <cms/log/runtime_ansi_formatter.h>
-#include <cms/static_string.h>
+#include <cms/util/log/ansi_formatter.h>
+#include <cms/util/log/formatter.h>
+#include <cms/util/log/runtime_ansi_formatter.h>
+#include <cms/util/static_string.h>
 
 #include "test.h"
 
 namespace {
 
 void checkResult(
-    const cms::WriteResult& result,
-    cms::Status status,
+    const cms::util::WriteResult& result,
+    cms::util::Status status,
     std::size_t written,
     std::size_t required) {
     CMS_TEST_CHECK(result.status == status);
@@ -22,7 +22,7 @@ void checkResult(
     CMS_TEST_CHECK(result.required == required);
 }
 
-void checkBytes(cms::StringView actual, cms::StringView expected) {
+void checkBytes(cms::util::StringView actual, cms::util::StringView expected) {
     CMS_TEST_REQUIRE(actual.size() == expected.size());
     if (!expected.empty()) {
         CMS_TEST_REQUIRE(actual.data() != nullptr);
@@ -34,19 +34,19 @@ void checkBytes(cms::StringView actual, cms::StringView expected) {
 }
 
 void checkMatchesReference(
-    cms::log::RuntimeAnsiFormatter& formatter,
+    cms::util::log::RuntimeAnsiFormatter& formatter,
     bool useColor,
-    const cms::log::Record& record) {
+    const cms::util::log::Record& record) {
     formatter.setUseColor(useColor);
 
-    cms::StaticString<256> expected;
-    const cms::WriteResult expectedResult = useColor
-        ? cms::log::formatAnsi(record, expected.buffer())
-        : cms::log::format(record, expected.buffer());
-    CMS_TEST_REQUIRE(expectedResult.status == cms::Status::ok);
+    cms::util::StaticString<256> expected;
+    const cms::util::WriteResult expectedResult = useColor
+        ? cms::util::log::formatAnsi(record, expected.buffer())
+        : cms::util::log::format(record, expected.buffer());
+    CMS_TEST_REQUIRE(expectedResult.status == cms::util::Status::ok);
 
-    cms::StaticString<256> actual;
-    const cms::WriteResult actualResult = formatter.format(
+    cms::util::StaticString<256> actual;
+    const cms::util::WriteResult actualResult = formatter.format(
         record,
         actual.buffer());
     checkResult(
@@ -58,17 +58,17 @@ void checkMatchesReference(
     CMS_TEST_CHECK(actual.cStr()[actual.size()] == '\0');
 }
 
-void checkAliased(bool useColor, cms::StringView expected) {
-    cms::log::RuntimeAnsiFormatter formatter;
+void checkAliased(bool useColor, cms::util::StringView expected) {
+    cms::util::log::RuntimeAnsiFormatter formatter;
     formatter.setUseColor(useColor);
 
-    cms::StaticString<64> output;
-    CMS_TEST_REQUIRE(output.assign("hello").status == cms::Status::ok);
-    const cms::StringView message = output.view();
-    const cms::WriteResult result = formatter.format(
-        {cms::log::Level::info, 0, message},
+    cms::util::StaticString<64> output;
+    CMS_TEST_REQUIRE(output.assign("hello").status == cms::util::Status::ok);
+    const cms::util::StringView message = output.view();
+    const cms::util::WriteResult result = formatter.format(
+        {cms::util::log::Level::info, 0, message},
         output.buffer());
-    checkResult(result, cms::Status::ok, expected.size(), expected.size());
+    checkResult(result, cms::util::Status::ok, expected.size(), expected.size());
     checkBytes(output.view(), expected);
     CMS_TEST_CHECK(output.cStr()[output.size()] == '\0');
 }
@@ -76,12 +76,12 @@ void checkAliased(bool useColor, cms::StringView expected) {
 } // namespace
 
 int main() {
-    cms::log::RuntimeAnsiFormatter formatter;
+    cms::util::log::RuntimeAnsiFormatter formatter;
     CMS_TEST_CHECK(formatter.useColor());
     CMS_TEST_CHECK(
-        cms::log::RuntimeAnsiFormatter::maxOverhead
-        == cms::log::maxAnsiFormattedRecordOverhead);
-    CMS_TEST_CHECK(cms::log::RuntimeAnsiFormatter::maxOverhead == 43);
+        cms::util::log::RuntimeAnsiFormatter::maxOverhead
+        == cms::util::log::maxAnsiFormattedRecordOverhead);
+    CMS_TEST_CHECK(cms::util::log::RuntimeAnsiFormatter::maxOverhead == 43);
 
     formatter.setUseColor(false);
     CMS_TEST_CHECK(!formatter.useColor());
@@ -92,47 +92,47 @@ int main() {
     formatter.setUseColor(true);
     CMS_TEST_CHECK(formatter.useColor());
 
-    const cms::log::Level levels[] = {
-        cms::log::Level::trace,
-        cms::log::Level::debug,
-        cms::log::Level::info,
-        cms::log::Level::warning,
-        cms::log::Level::error,
-        cms::log::Level::critical,
-        static_cast<cms::log::Level>(0xFF)};
+    const cms::util::log::Level levels[] = {
+        cms::util::log::Level::trace,
+        cms::util::log::Level::debug,
+        cms::util::log::Level::info,
+        cms::util::log::Level::warning,
+        cms::util::log::Level::error,
+        cms::util::log::Level::critical,
+        static_cast<cms::util::log::Level>(0xFF)};
     for (std::size_t index = 0;
          index < sizeof(levels) / sizeof(levels[0]);
          ++index) {
         checkMatchesReference(
             formatter,
             false,
-            {levels[index], static_cast<cms::log::Timestamp>(index), "x"});
+            {levels[index], static_cast<cms::util::log::Timestamp>(index), "x"});
         checkMatchesReference(
             formatter,
             true,
-            {levels[index], static_cast<cms::log::Timestamp>(index), "x"});
+            {levels[index], static_cast<cms::util::log::Timestamp>(index), "x"});
     }
 
     checkMatchesReference(
         formatter,
         false,
-        {cms::log::Level::info, 10, cms::StringView()});
+        {cms::util::log::Level::info, 10, cms::util::StringView()});
     checkMatchesReference(
         formatter,
         true,
-        {cms::log::Level::info, 10, cms::StringView()});
+        {cms::util::log::Level::info, 10, cms::util::StringView()});
 
     const char embeddedMessage[] = {'A', '\0', 'B'};
     checkMatchesReference(
         formatter,
         false,
-        {cms::log::Level::error, 11,
-         cms::StringView(embeddedMessage, sizeof(embeddedMessage))});
+        {cms::util::log::Level::error, 11,
+         cms::util::StringView(embeddedMessage, sizeof(embeddedMessage))});
     checkMatchesReference(
         formatter,
         true,
-        {cms::log::Level::error, 11,
-         cms::StringView(embeddedMessage, sizeof(embeddedMessage))});
+        {cms::util::log::Level::error, 11,
+         cms::util::StringView(embeddedMessage, sizeof(embeddedMessage))});
 
     const char utf8Message[] = {
         static_cast<char>(0xE2),
@@ -141,28 +141,28 @@ int main() {
     checkMatchesReference(
         formatter,
         false,
-        {cms::log::Level::warning, 12,
-         cms::StringView(utf8Message, sizeof(utf8Message))});
+        {cms::util::log::Level::warning, 12,
+         cms::util::StringView(utf8Message, sizeof(utf8Message))});
     checkMatchesReference(
         formatter,
         true,
-        {cms::log::Level::warning, 12,
-         cms::StringView(utf8Message, sizeof(utf8Message))});
+        {cms::util::log::Level::warning, 12,
+         cms::util::StringView(utf8Message, sizeof(utf8Message))});
 
     formatter.setUseColor(false);
-    cms::StaticString<64> plainOutput;
-    const cms::WriteResult plain = formatter.format(
-        {cms::log::Level::info, 10, "hello"},
+    cms::util::StaticString<64> plainOutput;
+    const cms::util::WriteResult plain = formatter.format(
+        {cms::util::log::Level::info, 10, "hello"},
         plainOutput.buffer());
-    checkResult(plain, cms::Status::ok, 18, 18);
+    checkResult(plain, cms::util::Status::ok, 18, 18);
     checkBytes(plainOutput.view(), "[10] [INFO] hello\n");
 
     formatter.setUseColor(true);
-    cms::StaticString<64> ansiOutput;
-    const cms::WriteResult ansi = formatter.format(
-        {cms::log::Level::info, 10, "hello"},
+    cms::util::StaticString<64> ansiOutput;
+    const cms::util::WriteResult ansi = formatter.format(
+        {cms::util::log::Level::info, 10, "hello"},
         ansiOutput.buffer());
-    checkResult(ansi, cms::Status::ok, 27, 27);
+    checkResult(ansi, cms::util::Status::ok, 27, 27);
     checkBytes(
         ansiOutput.view(),
         "[10] \033[32m[INFO]\033[0m hello\n");
@@ -171,109 +171,109 @@ int main() {
     char plainExactStorage[sizeof(plainExact)] = {};
     std::size_t plainExactSize = 0;
     formatter.setUseColor(false);
-    const cms::WriteResult plainExactResult = formatter.format(
-        {cms::log::Level::info, 0, "x"},
-        cms::StringBuffer(
+    const cms::util::WriteResult plainExactResult = formatter.format(
+        {cms::util::log::Level::info, 0, "x"},
+        cms::util::StringBuffer(
             plainExactStorage,
             sizeof(plainExactStorage),
             plainExactSize));
     checkResult(
         plainExactResult,
-        cms::Status::ok,
+        cms::util::Status::ok,
         sizeof(plainExact) - 1,
         sizeof(plainExact) - 1);
     checkBytes(
-        cms::StringView(plainExactStorage, plainExactSize),
+        cms::util::StringView(plainExactStorage, plainExactSize),
         plainExact);
 
     char plainShortStorage[sizeof(plainExact) - 1] = {'o', 'l', 'd', '\0'};
     std::size_t plainShortSize = 3;
-    const cms::WriteResult plainShort = formatter.format(
-        {cms::log::Level::info, 0, "x"},
-        cms::StringBuffer(
+    const cms::util::WriteResult plainShort = formatter.format(
+        {cms::util::log::Level::info, 0, "x"},
+        cms::util::StringBuffer(
             plainShortStorage,
             sizeof(plainShortStorage),
             plainShortSize));
     checkResult(
         plainShort,
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         0,
         sizeof(plainExact) - 1);
     CMS_TEST_CHECK(plainShortSize == 3);
-    checkBytes(cms::StringView(plainShortStorage, plainShortSize), "old");
+    checkBytes(cms::util::StringView(plainShortStorage, plainShortSize), "old");
     CMS_TEST_CHECK(plainShortStorage[3] == '\0');
 
     constexpr char ansiExact[] = "[0] \033[32m[INFO]\033[0m x\n";
     char ansiExactStorage[sizeof(ansiExact)] = {};
     std::size_t ansiExactSize = 0;
     formatter.setUseColor(true);
-    const cms::WriteResult ansiExactResult = formatter.format(
-        {cms::log::Level::info, 0, "x"},
-        cms::StringBuffer(
+    const cms::util::WriteResult ansiExactResult = formatter.format(
+        {cms::util::log::Level::info, 0, "x"},
+        cms::util::StringBuffer(
             ansiExactStorage,
             sizeof(ansiExactStorage),
             ansiExactSize));
     checkResult(
         ansiExactResult,
-        cms::Status::ok,
+        cms::util::Status::ok,
         sizeof(ansiExact) - 1,
         sizeof(ansiExact) - 1);
     checkBytes(
-        cms::StringView(ansiExactStorage, ansiExactSize),
+        cms::util::StringView(ansiExactStorage, ansiExactSize),
         ansiExact);
 
     char ansiShortStorage[sizeof(ansiExact) - 1] = {'o', 'l', 'd', '\0'};
     std::size_t ansiShortSize = 3;
-    const cms::WriteResult ansiShort = formatter.format(
-        {cms::log::Level::info, 0, "x"},
-        cms::StringBuffer(
+    const cms::util::WriteResult ansiShort = formatter.format(
+        {cms::util::log::Level::info, 0, "x"},
+        cms::util::StringBuffer(
             ansiShortStorage,
             sizeof(ansiShortStorage),
             ansiShortSize));
     checkResult(
         ansiShort,
-        cms::Status::no_space,
+        cms::util::Status::no_space,
         0,
         sizeof(ansiExact) - 1);
     CMS_TEST_CHECK(ansiShortSize == 3);
-    checkBytes(cms::StringView(ansiShortStorage, ansiShortSize), "old");
+    checkBytes(cms::util::StringView(ansiShortStorage, ansiShortSize), "old");
     CMS_TEST_CHECK(ansiShortStorage[3] == '\0');
 
-    const cms::WriteResult invalid = formatter.format(
-        {cms::log::Level::info, 0, "x"},
-        cms::StringBuffer());
-    checkResult(invalid, cms::Status::invalid_argument, 0, 0);
+    const cms::util::WriteResult invalid = formatter.format(
+        {cms::util::log::Level::info, 0, "x"},
+        cms::util::StringBuffer());
+    checkResult(invalid, cms::util::Status::invalid_argument, 0, 0);
 
     char overflowStorage[8] = {'o', 'l', 'd', '\0'};
     std::size_t overflowSize = 3;
-    const cms::WriteResult overflow = formatter.format(
+    const cms::util::WriteResult overflow = formatter.format(
         {
-            cms::log::Level::info,
+            cms::util::log::Level::info,
             0,
-            cms::StringView(
+            cms::util::StringView(
                 "x",
                 (std::numeric_limits<std::size_t>::max)())
         },
-        cms::StringBuffer(
+        cms::util::StringBuffer(
             overflowStorage,
             sizeof(overflowStorage),
             overflowSize));
-    checkResult(overflow, cms::Status::out_of_range, 0, 0);
+    checkResult(overflow, cms::util::Status::out_of_range, 0, 0);
     CMS_TEST_CHECK(overflowSize == 3);
-    checkBytes(cms::StringView(overflowStorage, overflowSize), "old");
+    checkBytes(cms::util::StringView(overflowStorage, overflowSize), "old");
 
     checkAliased(false, "[0] [INFO] hello\n");
     checkAliased(true, "[0] \033[32m[INFO]\033[0m hello\n");
 
     std::printf(
-        "sizeof(cms::log::PlainFormatter)=%zu\n",
-        sizeof(cms::log::PlainFormatter));
+        "sizeof(cms::util::log::PlainFormatter)=%zu\n",
+        sizeof(cms::util::log::PlainFormatter));
     std::printf(
-        "sizeof(cms::log::AnsiFormatter)=%zu\n",
-        sizeof(cms::log::AnsiFormatter));
+        "sizeof(cms::util::log::AnsiFormatter)=%zu\n",
+        sizeof(cms::util::log::AnsiFormatter));
     std::printf(
-        "sizeof(cms::log::RuntimeAnsiFormatter)=%zu\n",
-        sizeof(cms::log::RuntimeAnsiFormatter));
+        "sizeof(cms::util::log::RuntimeAnsiFormatter)=%zu\n",
+        sizeof(cms::util::log::RuntimeAnsiFormatter));
 
     return cms::test::finish();
 }

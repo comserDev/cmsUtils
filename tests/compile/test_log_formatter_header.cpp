@@ -1,5 +1,5 @@
-#include <cms/log/formatter.h>
+#include <cms/util/log/formatter.h>
 
 static_assert(
-    cms::log::maxFormattedRecordOverhead == 35,
+    cms::util::log::maxFormattedRecordOverhead == 35,
     "formatter.h must compile independently");

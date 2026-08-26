@@ -1,9 +1,10 @@
-#include <cms/parse.h>
+#include <cms/util/parse.h>
 
 #include <cstddef>
 #include <limits>
 
 namespace cms {
+namespace util {
 namespace parse {
 
 namespace {
@@ -141,4 +142,5 @@ ParseResult<std::int64_t> signedInteger(
 }
 
 } // namespace parse
+} // namespace util
 } // namespace cms
