@@ -13,6 +13,7 @@
 #include <cms/log/runtime_ansi_formatter.h>
 #include <cms/log/sink.h>
 #include <cms/log/styled_ansi_formatter.h>
+#include <cms/log/utc_offset_formatter.h>
 #include <cms/static_queue.h>
 #include <cms/static_string.h>
 #include <cms/status.h>
@@ -35,6 +36,24 @@ struct IsRuntimeColorFormatter<RuntimeStyledAnsiFormatter>
     : std::true_type {};
 
 template<class Formatter>
+struct IsRuntimeColorFormatter<UtcOffsetFormatter<Formatter>>
+    : IsRuntimeColorFormatter<Formatter> {};
+
+template<class Formatter>
+struct IsStatefulFormatter : std::false_type {};
+
+template<class Formatter>
+struct IsStatefulFormatter<UtcOffsetFormatter<Formatter>>
+    : std::true_type {};
+
+template<class Formatter>
+struct IsRuntimeUtcOffsetFormatter : std::false_type {};
+
+template<class Formatter>
+struct IsRuntimeUtcOffsetFormatter<UtcOffsetFormatter<Formatter>>
+    : std::true_type {};
+
+template<class Formatter>
 struct IsStyledFormatter : std::false_type {};
 
 template<>
@@ -42,6 +61,10 @@ struct IsStyledFormatter<StyledAnsiFormatter> : std::true_type {};
 
 template<>
 struct IsStyledFormatter<RuntimeStyledAnsiFormatter> : std::true_type {};
+
+template<class Formatter>
+struct IsStyledFormatter<UtcOffsetFormatter<Formatter>>
+    : IsStyledFormatter<Formatter> {};
 
 template<
     std::size_t MessageBytes,
@@ -82,7 +105,8 @@ template<
     class Formatter,
     class LevelFilter,
     bool RuntimeColor = IsRuntimeColorFormatter<Formatter>::value,
-    bool RuntimeLevel = std::is_same<LevelFilter, RuntimeLevelFilter>::value>
+    bool RuntimeLevel = std::is_same<LevelFilter, RuntimeLevelFilter>::value,
+    bool Stateful = IsStatefulFormatter<Formatter>::value>
 class AsyncLoggerPolicyStorage {
 protected:
     WriteResult formatRecord(
@@ -99,8 +123,13 @@ protected:
 };
 
 // Runtime color만 선택한 조합은 formatter state만 소유한다.
-template<class Formatter, class LevelFilter>
-class AsyncLoggerPolicyStorage<Formatter, LevelFilter, true, false> {
+template<class Formatter, class LevelFilter, bool Stateful>
+class AsyncLoggerPolicyStorage<
+    Formatter,
+    LevelFilter,
+    true,
+    false,
+    Stateful> {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -121,13 +150,26 @@ protected:
         return formatter_.useColor();
     }
 
+    Status setRuntimeUtcOffsetMinutes(int minutes) noexcept {
+        return formatter_.setUtcOffsetMinutes(minutes);
+    }
+
+    int runtimeUtcOffsetMinutes() const noexcept {
+        return formatter_.utcOffsetMinutes();
+    }
+
 private:
     Formatter formatter_;
 };
 
 // Runtime level만 선택한 조합은 filter state만 소유한다.
 template<class Formatter>
-class AsyncLoggerPolicyStorage<Formatter, RuntimeLevelFilter, false, true> {
+class AsyncLoggerPolicyStorage<
+    Formatter,
+    RuntimeLevelFilter,
+    false,
+    true,
+    false> {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -160,9 +202,94 @@ private:
     RuntimeLevelFilter levelFilter_;
 };
 
-// 두 runtime 기능을 함께 선택한 조합만 두 state를 모두 소유한다.
+// Runtime color/level 없이 stateful formatter만 선택한 조합은 formatter state만 소유한다.
+template<class Formatter, class LevelFilter>
+class AsyncLoggerPolicyStorage<
+    Formatter,
+    LevelFilter,
+    false,
+    false,
+    true> {
+protected:
+    WriteResult formatRecord(
+        const Record& record,
+        StringBuffer output) noexcept {
+        return formatter_.format(record, output);
+    }
+
+    bool allowsLevel(Level level) const noexcept(
+        noexcept(LevelFilter::allows(level))) {
+        return LevelFilter::allows(level);
+    }
+
+    Status setRuntimeUtcOffsetMinutes(int minutes) noexcept {
+        return formatter_.setUtcOffsetMinutes(minutes);
+    }
+
+    int runtimeUtcOffsetMinutes() const noexcept {
+        return formatter_.utcOffsetMinutes();
+    }
+
+private:
+    Formatter formatter_;
+};
+
+// Runtime level과 stateful formatter 조합은 formatter와 filter state를 모두 소유한다.
 template<class Formatter>
-class AsyncLoggerPolicyStorage<Formatter, RuntimeLevelFilter, true, true> {
+class AsyncLoggerPolicyStorage<
+    Formatter,
+    RuntimeLevelFilter,
+    false,
+    true,
+    true> {
+protected:
+    WriteResult formatRecord(
+        const Record& record,
+        StringBuffer output) noexcept {
+        return formatter_.format(record, output);
+    }
+
+    bool allowsLevel(Level level) const noexcept {
+        return levelFilter_.allows(level);
+    }
+
+    Status setRuntimeUtcOffsetMinutes(int minutes) noexcept {
+        return formatter_.setUtcOffsetMinutes(minutes);
+    }
+
+    int runtimeUtcOffsetMinutes() const noexcept {
+        return formatter_.utcOffsetMinutes();
+    }
+
+    void setRuntimeMinLevel(Level level) noexcept {
+        levelFilter_.setMinLevel(level);
+    }
+
+    Level runtimeMinLevel() const noexcept {
+        return levelFilter_.minLevel();
+    }
+
+    void setRuntimeLoggingEnabled(bool enabled) noexcept {
+        levelFilter_.setEnabled(enabled);
+    }
+
+    bool runtimeLoggingEnabled() const noexcept {
+        return levelFilter_.enabled();
+    }
+
+private:
+    Formatter formatter_;
+    RuntimeLevelFilter levelFilter_;
+};
+
+// 두 runtime 기능을 함께 선택한 조합만 formatter와 filter state를 모두 소유한다.
+template<class Formatter, bool Stateful>
+class AsyncLoggerPolicyStorage<
+    Formatter,
+    RuntimeLevelFilter,
+    true,
+    true,
+    Stateful> {
 protected:
     WriteResult formatRecord(
         const Record& record,
@@ -180,6 +307,14 @@ protected:
 
     bool runtimeUseColor() const noexcept {
         return formatter_.useColor();
+    }
+
+    Status setRuntimeUtcOffsetMinutes(int minutes) noexcept {
+        return formatter_.setUtcOffsetMinutes(minutes);
+    }
+
+    int runtimeUtcOffsetMinutes() const noexcept {
+        return formatter_.utcOffsetMinutes();
     }
 
     void setRuntimeMinLevel(Level level) noexcept {
@@ -335,6 +470,27 @@ public:
             int>::type = 0>
     bool useColor() const noexcept {
         return this->runtimeUseColor();
+    }
+
+    // offset은 formatter state이며 이미 enqueue된 record에도 drain 시점 값을 적용한다.
+    template<
+        class FormatterType = Formatter,
+        typename std::enable_if<
+            detail::IsRuntimeUtcOffsetFormatter<Formatter>::value
+                && std::is_same<FormatterType, Formatter>::value,
+            int>::type = 0>
+    Status setUtcOffsetMinutes(int minutes) noexcept {
+        return this->setRuntimeUtcOffsetMinutes(minutes);
+    }
+
+    template<
+        class FormatterType = Formatter,
+        typename std::enable_if<
+            detail::IsRuntimeUtcOffsetFormatter<Formatter>::value
+                && std::is_same<FormatterType, Formatter>::value,
+            int>::type = 0>
+    int utcOffsetMinutes() const noexcept {
+        return this->runtimeUtcOffsetMinutes();
     }
 
     // Runtime filter 설정과 log를 동시에 호출하려면 caller가 외부에서 동기화한다.

@@ -931,3 +931,81 @@ cms_configure_target(cms_printf_log_integration_tests)
 add_test(
     NAME cms.printf_log_integration
     COMMAND cms_printf_log_integration_tests)
+
+add_library(cms_utc_offset_formatter_compile_contract OBJECT
+    compile/test_utc_offset_formatter_contract.cpp
+)
+
+target_link_libraries(cms_utc_offset_formatter_compile_contract
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_compile_features(
+    cms_utc_offset_formatter_compile_contract PRIVATE cxx_std_17)
+cms_configure_target(cms_utc_offset_formatter_compile_contract)
+
+add_library(cms_utc_offset_formatter_header_compile OBJECT
+    compile/test_utc_offset_formatter_header.cpp
+)
+
+target_include_directories(cms_utc_offset_formatter_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_utc_offset_formatter_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_utc_offset_formatter_header_compile)
+
+add_library(cms_system_clock_header_compile OBJECT
+    compile/test_system_clock_header.cpp
+)
+
+target_include_directories(cms_system_clock_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_system_clock_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_system_clock_header_compile)
+
+add_executable(cms_utc_offset_formatter_tests
+    unit/test_utc_offset_formatter.cpp
+)
+
+target_link_libraries(cms_utc_offset_formatter_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_utc_offset_formatter_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(
+    cms_utc_offset_formatter_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_utc_offset_formatter_tests)
+add_test(
+    NAME cms.utc_offset_formatter
+    COMMAND cms_utc_offset_formatter_tests)
+
+add_executable(cms_system_clock_tests
+    unit/test_system_clock.cpp
+)
+
+target_link_libraries(cms_system_clock_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_system_clock_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_system_clock_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_system_clock_tests)
+add_test(NAME cms.system_clock COMMAND cms_system_clock_tests)

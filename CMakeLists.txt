@@ -112,6 +112,7 @@ add_library(cms_embedded_utils STATIC
     src/format.cpp
     src/log/ansi_formatter.cpp
     src/log/formatter.cpp
+    src/log/utc_offset_formatter.cpp
     src/log/styled_ansi_formatter.cpp
     src/parse.cpp
     src/string_ops.cpp
