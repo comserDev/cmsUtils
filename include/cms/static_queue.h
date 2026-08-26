@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -75,6 +76,23 @@ public:
         return emplace(std::move(value));
     }
 
+    // 공간이 있으면 push와 같고 full이면 oldest를 새 logical tail로 교체한다.
+    // full에서 source가 oldest와 같으면 queue를 바꾸지 않고 거부한다. 다른 live
+    // element는 source로 쓸 수 있다. overwrite construction은 실패하지 않아야 한다.
+    Status pushOverwrite(const T& value) noexcept {
+        static_assert(
+            std::is_nothrow_copy_constructible<T>::value,
+            "pushOverwrite requires nothrow copy construction");
+        return pushOverwriteValue(value);
+    }
+
+    Status pushOverwrite(T&& value) noexcept {
+        static_assert(
+            std::is_nothrow_move_constructible<T>::value,
+            "pushOverwrite requires nothrow move construction");
+        return pushOverwriteValue(std::move(value));
+    }
+
     template<class... Args>
     Status emplace(Args&&... args)
         noexcept(std::is_nothrow_constructible<T, Args...>::value) {
@@ -116,6 +134,28 @@ public:
     }
 
 private:
+    template<class Value>
+    Status pushOverwriteValue(Value&& value) noexcept {
+        if (!full()) {
+            return emplace(std::forward<Value>(value));
+        }
+
+        // full 상태의 tail은 head와 같다. old lifetime을 끝낸 뒤 같은 slot에
+        // 새 object를 만들고 head를 옮기면 새 element가 logical tail이 된다.
+        const std::size_t oldest = headIndex();
+        T* const oldestElement = pointerAt(oldest);
+        const T* const source = std::addressof(value);
+        if (source == oldestElement) {
+            return Status::invalid_argument;
+        }
+
+        oldestElement->~T();
+        ::new (static_cast<void*>(storage_[oldest].bytes))
+            T(std::forward<Value>(value));
+        advanceHead();
+        return Status::ok;
+    }
+
     std::size_t headIndex() const noexcept {
         return static_cast<std::size_t>(head_);
     }

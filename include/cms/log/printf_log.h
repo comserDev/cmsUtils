@@ -22,6 +22,7 @@ template<
     class Mutex,
     class Formatter,
     class LevelFilter,
+    class FullQueuePolicy,
     class... Args>
 Status logf(
     AsyncLogger<
@@ -31,7 +32,8 @@ Status logf(
         Sink,
         Mutex,
         Formatter,
-        LevelFilter>& logger,
+        LevelFilter,
+        FullQueuePolicy>& logger,
     Level level,
     const char* format,
     Args&&... args) {

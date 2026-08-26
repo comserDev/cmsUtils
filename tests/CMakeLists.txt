@@ -932,6 +932,40 @@ add_test(
     NAME cms.printf_log_integration
     COMMAND cms_printf_log_integration_tests)
 
+add_library(cms_full_queue_policy_header_compile OBJECT
+    compile/test_full_queue_policy_header.cpp
+)
+
+target_include_directories(cms_full_queue_policy_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_full_queue_policy_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_full_queue_policy_header_compile)
+
+add_executable(cms_async_logger_overwrite_tests
+    unit/test_async_logger_overwrite.cpp
+)
+
+target_link_libraries(cms_async_logger_overwrite_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_async_logger_overwrite_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(
+    cms_async_logger_overwrite_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_async_logger_overwrite_tests)
+add_test(
+    NAME cms.async_logger_overwrite
+    COMMAND cms_async_logger_overwrite_tests)
+
 add_library(cms_utc_offset_formatter_compile_contract OBJECT
     compile/test_utc_offset_formatter_contract.cpp
 )

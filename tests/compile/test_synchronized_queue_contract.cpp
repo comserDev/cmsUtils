@@ -127,6 +127,14 @@ static_assert(std::is_same<
         std::declval<Element&&>())),
     cms::Status>::value, "move push has the wrong return type");
 static_assert(std::is_same<
+    decltype(std::declval<SyncQueue&>().pushOverwrite(
+        std::declval<const Element&>())),
+    cms::Status>::value, "copy overwrite push has the wrong return type");
+static_assert(std::is_same<
+    decltype(std::declval<SyncQueue&>().pushOverwrite(
+        std::declval<Element&&>())),
+    cms::Status>::value, "move overwrite push has the wrong return type");
+static_assert(std::is_same<
     decltype(std::declval<SyncQueue&>().consumeFront(Consumer{})),
     cms::Status>::value, "consumeFront has the wrong return type");
 
@@ -146,6 +154,12 @@ static_assert(noexcept(std::declval<SyncQueue&>().push(
     std::declval<const Element&>())), "copy push must forward noexcept");
 static_assert(noexcept(std::declval<SyncQueue&>().push(
     std::declval<Element&&>())), "move push must forward noexcept");
+static_assert(noexcept(std::declval<SyncQueue&>().pushOverwrite(
+    std::declval<const Element&>())),
+    "copy overwrite push must forward noexcept");
+static_assert(noexcept(std::declval<SyncQueue&>().pushOverwrite(
+    std::declval<Element&&>())),
+    "move overwrite push must forward noexcept");
 static_assert(!noexcept(std::declval<const ThrowingQueue&>().size()),
     "throwing lock must not become noexcept");
 static_assert(!noexcept(std::declval<ThrowingQueue&>().pop()),

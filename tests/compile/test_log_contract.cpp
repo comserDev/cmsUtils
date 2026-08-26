@@ -7,6 +7,7 @@
 #include <cms/log/async_logger.h>
 #include <cms/log/clock.h>
 #include <cms/log/formatter.h>
+#include <cms/log/full_queue_policy.h>
 #include <cms/log/level.h>
 #include <cms/log/level_filter.h>
 #include <cms/log/record.h>
@@ -138,6 +139,15 @@ struct HasLevelFilterAccessor<
     : std::true_type {};
 
 template<class Type, class = void>
+struct HasFullQueuePolicyAccessor : std::false_type {};
+
+template<class Type>
+struct HasFullQueuePolicyAccessor<
+    Type,
+    std::void_t<decltype(std::declval<Type&>().fullQueuePolicy())>>
+    : std::true_type {};
+
+template<class Type, class = void>
 struct HasSetLoggingEnabled : std::false_type {};
 
 template<class Type>
@@ -173,6 +183,24 @@ using ExplicitPlainNoFilterLogger = cms::log::AsyncLogger<
     cms::sync::NullMutex,
     cms::log::PlainFormatter,
     cms::log::NoLevelFilter>;
+using ExplicitRejectLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::PlainFormatter,
+    cms::log::NoLevelFilter,
+    cms::log::RejectOnFull>;
+using OverwriteLogger = cms::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::sync::NullMutex,
+    cms::log::PlainFormatter,
+    cms::log::NoLevelFilter,
+    cms::log::OverwriteOldestOnFull>;
 using AnsiLogger = cms::log::AsyncLogger<
     16,
     4,
@@ -317,6 +345,14 @@ static_assert(std::is_same<Logger, ExplicitPlainLogger>::value,
     "five-parameter logger must keep the plain formatter default");
 static_assert(std::is_same<Logger, ExplicitPlainNoFilterLogger>::value,
     "five-parameter logger must keep the no-filter default");
+static_assert(std::is_same<Logger, ExplicitRejectLogger>::value,
+    "seven-parameter logger must keep reject-on-full as the default");
+static_assert(!std::is_same<Logger, OverwriteLogger>::value,
+    "overwrite-oldest behavior must require explicit selection");
+static_assert(std::is_empty<cms::log::RejectOnFull>::value,
+    "reject-on-full policy must remain stateless");
+static_assert(std::is_empty<cms::log::OverwriteOldestOnFull>::value,
+    "overwrite-oldest policy must remain stateless");
 static_assert(!std::is_same<Logger, AnsiLogger>::value,
     "ANSI formatter must require explicit selection");
 static_assert(std::is_same<AnsiLogger, ExplicitAnsiNoFilterLogger>::value,
@@ -469,6 +505,14 @@ static_assert(std::is_same<
         cms::log::Timestamp{0},
         cms::StringView())),
     cms::WriteResult>::value, "assign has the wrong return type");
+static_assert(std::is_nothrow_copy_constructible<StaticRecord>::value,
+    "StaticRecord copy construction must remain noexcept");
+static_assert(std::is_nothrow_move_constructible<StaticRecord>::value,
+    "StaticRecord move construction must remain noexcept");
+static_assert(std::is_nothrow_copy_assignable<StaticRecord>::value,
+    "StaticRecord copy assignment must remain noexcept");
+static_assert(std::is_nothrow_move_assignable<StaticRecord>::value,
+    "StaticRecord move assignment must remain noexcept");
 
 static_assert(std::is_nothrow_default_constructible<Logger>::value,
     "default logger must preserve noexcept construction");
@@ -493,6 +537,12 @@ static_assert(!std::is_move_constructible<Logger>::value,
     "logger move must be deleted");
 static_assert(!std::is_move_assignable<Logger>::value,
     "logger move assignment must be deleted");
+static_assert(std::is_default_constructible<OverwriteLogger>::value,
+    "explicit overwrite logger must be constructible");
+static_assert(!std::is_copy_constructible<OverwriteLogger>::value,
+    "overwrite logger copy must be deleted");
+static_assert(!std::is_move_constructible<OverwriteLogger>::value,
+    "overwrite logger move must be deleted");
 static_assert(std::is_default_constructible<RuntimeAnsiLogger>::value,
     "runtime ANSI logger must be constructible");
 static_assert(std::is_default_constructible<StyledLogger>::value,
@@ -693,3 +743,7 @@ static_assert(!HasLevelFilterAccessor<Logger>::value,
     "raw LevelFilter access must not escape the logger");
 static_assert(!HasLevelFilterAccessor<RuntimeLevelPlainLogger>::value,
     "raw runtime LevelFilter access must not escape the logger");
+static_assert(!HasFullQueuePolicyAccessor<Logger>::value,
+    "raw full queue policy access must not escape the logger");
+static_assert(!HasFullQueuePolicyAccessor<OverwriteLogger>::value,
+    "overwrite policy must not add a raw accessor");

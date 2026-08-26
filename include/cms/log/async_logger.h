@@ -7,6 +7,7 @@
 
 #include <cms/log/clock.h>
 #include <cms/log/formatter.h>
+#include <cms/log/full_queue_policy.h>
 #include <cms/log/level.h>
 #include <cms/log/level_filter.h>
 #include <cms/log/record.h>
@@ -350,7 +351,8 @@ template<
     class Sink,
     class Mutex,
     class Formatter = PlainFormatter,
-    class LevelFilter = NoLevelFilter>
+    class LevelFilter = NoLevelFilter,
+    class FullQueuePolicy = RejectOnFull>
 class AsyncLogger
     : private detail::AsyncLoggerPolicyStorage<Formatter, LevelFilter> {
     using OwnedRecord = StaticRecord<MessageBytes>;
@@ -359,6 +361,13 @@ class AsyncLogger
 
     static constexpr std::size_t formattedLineStorageBytes =
         detail::AsyncLoggerLineStorage<MessageBytes, Formatter>::value;
+
+    static_assert(
+        std::is_same<FullQueuePolicy, RejectOnFull>::value
+            || std::is_same<
+                FullQueuePolicy,
+                OverwriteOldestOnFull>::value,
+        "AsyncLogger supports only built-in full queue policies");
 
 public:
     AsyncLogger() = default;
@@ -425,7 +434,14 @@ public:
             return assigned.status;
         }
 
-        return queue_.push(std::move(record));
+        if constexpr (
+            std::is_same<
+                FullQueuePolicy,
+                OverwriteOldestOnFull>::value) {
+            return queue_.pushOverwrite(std::move(record));
+        } else {
+            return queue_.push(std::move(record));
+        }
     }
 
     Status drainOne() {

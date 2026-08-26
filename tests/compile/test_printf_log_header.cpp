@@ -19,6 +19,15 @@ using HeaderLogger = cms::log::AsyncLogger<
     HeaderClock,
     HeaderSink,
     cms::sync::NullMutex>;
+using OverwriteHeaderLogger = cms::log::AsyncLogger<
+    16,
+    2,
+    HeaderClock,
+    HeaderSink,
+    cms::sync::NullMutex,
+    cms::log::PlainFormatter,
+    cms::log::NoLevelFilter,
+    cms::log::OverwriteOldestOnFull>;
 
 static_assert(std::is_same<
     decltype(cms::log::logf(
@@ -28,5 +37,13 @@ static_assert(std::is_same<
         1)),
     cms::Status>::value,
     "printf_log.h must expose Status-returning logf");
+static_assert(std::is_same<
+    decltype(cms::log::logf(
+        std::declval<OverwriteHeaderLogger&>(),
+        cms::log::Level::info,
+        "%d",
+        1)),
+    cms::Status>::value,
+    "logf must support an explicit overwrite logger");
 
 } // namespace

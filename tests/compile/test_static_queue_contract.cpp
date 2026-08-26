@@ -85,6 +85,18 @@ static_assert(
             std::declval<NothrowElement&&>())),
         cms::Status>::value,
     "move push has the wrong return type");
+static_assert(
+    std::is_same<
+        decltype(std::declval<Queue&>().pushOverwrite(
+            std::declval<const NothrowElement&>())),
+        cms::Status>::value,
+    "copy overwrite push has the wrong return type");
+static_assert(
+    std::is_same<
+        decltype(std::declval<Queue&>().pushOverwrite(
+            std::declval<NothrowElement&&>())),
+        cms::Status>::value,
+    "move overwrite push has the wrong return type");
 
 static_assert(
     std::is_nothrow_default_constructible<Queue>::value,
@@ -103,6 +115,12 @@ static_assert(noexcept(std::declval<Queue&>().push(
     std::declval<const NothrowElement&>())), "nothrow copy push expected");
 static_assert(noexcept(std::declval<Queue&>().push(
     std::declval<NothrowElement&&>())), "nothrow move push expected");
+static_assert(noexcept(std::declval<Queue&>().pushOverwrite(
+    std::declval<const NothrowElement&>())),
+    "copy overwrite push must be noexcept");
+static_assert(noexcept(std::declval<Queue&>().pushOverwrite(
+    std::declval<NothrowElement&&>())),
+    "move overwrite push must be noexcept");
 static_assert(noexcept(std::declval<Queue&>().emplace(1)), "nothrow emplace expected");
 static_assert(noexcept(std::declval<Queue&>().pop()), "pop must be noexcept");
 static_assert(noexcept(std::declval<Queue&>().clear()), "clear must be noexcept");

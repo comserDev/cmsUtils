@@ -206,6 +206,28 @@ int main() {
     }) == cms::Status::ok);
     CMS_TEST_CHECK(preservedFront == 10);
 
+    ExternalQueue overwriteSynchronized{
+        cms::sync::MutexRef<CountingMutex>(externalMutex)};
+    CMS_TEST_REQUIRE(overwriteSynchronized.push(1) == cms::Status::ok);
+    CMS_TEST_REQUIRE(overwriteSynchronized.push(2) == cms::Status::ok);
+    CMS_TEST_REQUIRE(overwriteSynchronized.push(3) == cms::Status::ok);
+    locksBefore = externalMutex.locks;
+    unlocksBefore = externalMutex.unlocks;
+    CMS_TEST_CHECK(overwriteSynchronized.pushOverwrite(4)
+        == cms::Status::ok);
+    checkOperation(externalMutex, locksBefore, unlocksBefore);
+    CMS_TEST_CHECK(overwriteSynchronized.size() == 3);
+    CMS_TEST_CHECK(overwriteSynchronized.full());
+    for (int expected = 2; expected <= 4; ++expected) {
+        int actual = 0;
+        CMS_TEST_REQUIRE(overwriteSynchronized.consumeFront(
+            [&actual](int& value) {
+                actual = value;
+            }) == cms::Status::ok);
+        CMS_TEST_CHECK(actual == expected);
+    }
+    CMS_TEST_CHECK(overwriteSynchronized.empty());
+
     using NullQueue = cms::SynchronizedQueue<
         cms::StaticQueue<int, 3>,
         cms::sync::NullMutex>;
@@ -247,6 +269,22 @@ int main() {
     }) == cms::Status::ok);
     CMS_TEST_CHECK(moveQueue.consumeFront([](MoveOnly& value) {
         CMS_TEST_CHECK(value.value == 72);
+    }) == cms::Status::ok);
+    CMS_TEST_CHECK(moveQueue.empty());
+    MoveOnly overwriteFirst(73);
+    MoveOnly overwriteSecond(74);
+    MoveOnly overwriteThird(75);
+    CMS_TEST_REQUIRE(moveQueue.push(std::move(overwriteFirst))
+        == cms::Status::ok);
+    CMS_TEST_REQUIRE(moveQueue.push(std::move(overwriteSecond))
+        == cms::Status::ok);
+    CMS_TEST_CHECK(moveQueue.pushOverwrite(std::move(overwriteThird))
+        == cms::Status::ok);
+    CMS_TEST_CHECK(moveQueue.consumeFront([](MoveOnly& value) {
+        CMS_TEST_CHECK(value.value == 74);
+    }) == cms::Status::ok);
+    CMS_TEST_CHECK(moveQueue.consumeFront([](MoveOnly& value) {
+        CMS_TEST_CHECK(value.value == 75);
     }) == cms::Status::ok);
     CMS_TEST_CHECK(moveQueue.empty());
 

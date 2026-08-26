@@ -77,6 +77,18 @@ public:
         return queue_.push(std::forward<Value>(value));
     }
 
+    // full 확인, old element 제거, 새 element 생성까지 하나의 lock으로 보호한다.
+    template<class Value>
+    Status pushOverwrite(Value&& value)
+        noexcept(
+            noexcept(std::declval<Mutex&>().lock())
+            && noexcept(std::declval<Queue&>().pushOverwrite(
+                std::declval<Value&&>()))
+            && noexcept(std::declval<Mutex&>().unlock())) {
+        sync::LockGuard<Mutex> guard(mutex_);
+        return queue_.pushOverwrite(std::forward<Value>(value));
+    }
+
     template<class... Args>
     Status emplace(Args&&... args)
         noexcept(

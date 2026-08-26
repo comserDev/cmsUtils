@@ -72,6 +72,44 @@ struct Tracker {
     int value;
 };
 
+struct AliasTracker {
+    AliasTracker(TrackerCounts& state, int initialValue) noexcept
+        : counts(&state), value(initialValue) {
+        ++counts->direct;
+        ++counts->live;
+    }
+
+    AliasTracker(const AliasTracker& other) noexcept
+        : counts(other.counts), value(other.value) {
+        ++counts->copies;
+        ++counts->live;
+    }
+
+    AliasTracker(AliasTracker&& other) noexcept
+        : counts(other.counts), value(other.value) {
+        other.value = -1;
+        ++counts->moves;
+        ++counts->live;
+    }
+
+    ~AliasTracker() noexcept {
+        ++counts->destructors;
+        --counts->live;
+    }
+
+    // alias 검사가 overloaded operator& 대신 실제 object 주소를 쓰는지 확인한다.
+    AliasTracker* operator&() noexcept {
+        return nullptr;
+    }
+
+    const AliasTracker* operator&() const noexcept {
+        return nullptr;
+    }
+
+    TrackerCounts* counts;
+    int value;
+};
+
 struct OrderTracker {
     OrderTracker(
         int initialValue,
@@ -98,6 +136,26 @@ struct alignas(32) OverAligned {
     std::uint32_t value;
     unsigned char padding[28];
 };
+
+template<std::size_t Capacity>
+void checkOverwriteBoundary() {
+    cms::StaticQueue<std::uint16_t, Capacity> queue;
+    for (std::size_t index = 0; index < Capacity; ++index) {
+        CMS_TEST_REQUIRE(queue.push(static_cast<std::uint16_t>(index))
+            == cms::Status::ok);
+    }
+
+    CMS_TEST_CHECK(queue.full());
+    CMS_TEST_CHECK(queue.size() == Capacity);
+    CMS_TEST_CHECK(queue.pushOverwrite(UINT16_C(999)) == cms::Status::ok);
+    CMS_TEST_CHECK(queue.full());
+    CMS_TEST_CHECK(queue.size() == Capacity);
+    CMS_TEST_REQUIRE(queue.front() != nullptr);
+    const std::uint16_t expected = Capacity == 1
+        ? UINT16_C(999)
+        : UINT16_C(1);
+    CMS_TEST_CHECK(*queue.front() == expected);
+}
 
 } // namespace
 
@@ -156,6 +214,38 @@ int main() {
     CMS_TEST_CHECK(single.push(40) == cms::Status::ok);
     CMS_TEST_REQUIRE(single.front() != nullptr);
     CMS_TEST_CHECK(*single.front() == 40);
+
+    cms::StaticQueue<int, 3> overwrite;
+    CMS_TEST_CHECK(overwrite.pushOverwrite(1) == cms::Status::ok);
+    CMS_TEST_CHECK(overwrite.pushOverwrite(2) == cms::Status::ok);
+    CMS_TEST_CHECK(overwrite.pushOverwrite(3) == cms::Status::ok);
+    CMS_TEST_CHECK(overwrite.full());
+    CMS_TEST_CHECK(overwrite.pushOverwrite(4) == cms::Status::ok);
+    CMS_TEST_REQUIRE(overwrite.front() != nullptr);
+    CMS_TEST_CHECK(*overwrite.front() == 2);
+    CMS_TEST_CHECK(overwrite.pushOverwrite(5) == cms::Status::ok);
+    CMS_TEST_REQUIRE(overwrite.front() != nullptr);
+    CMS_TEST_CHECK(*overwrite.front() == 3);
+    for (int expectedValue = 3; expectedValue <= 5; ++expectedValue) {
+        CMS_TEST_REQUIRE(overwrite.front() != nullptr);
+        CMS_TEST_CHECK(*overwrite.front() == expectedValue);
+        CMS_TEST_REQUIRE(overwrite.pop() == cms::Status::ok);
+    }
+    CMS_TEST_CHECK(overwrite.empty());
+
+    cms::StaticQueue<int, 1> copyOverwrite;
+    const int copiedFirst = 61;
+    const int copiedSecond = 62;
+    CMS_TEST_REQUIRE(copyOverwrite.pushOverwrite(copiedFirst)
+        == cms::Status::ok);
+    CMS_TEST_CHECK(copyOverwrite.pushOverwrite(copiedSecond)
+        == cms::Status::ok);
+    CMS_TEST_REQUIRE(copyOverwrite.front() != nullptr);
+    CMS_TEST_CHECK(*copyOverwrite.front() == copiedSecond);
+
+    checkOverwriteBoundary<1>();
+    checkOverwriteBoundary<255>();
+    checkOverwriteBoundary<256>();
 
     cms::StaticQueue<NonDefault, 3> nonDefault;
     CMS_TEST_CHECK(nonDefault.empty());
@@ -242,6 +332,93 @@ int main() {
     }
     CMS_TEST_CHECK(fullCounts.live == 0);
     CMS_TEST_CHECK(fullCounts.destructors == 2);
+
+    TrackerCounts overwriteCounts{0, 0, 0, 0, 0};
+    {
+        cms::StaticQueue<Tracker, 3> tracked;
+        CMS_TEST_REQUIRE(tracked.emplace(overwriteCounts, 1)
+            == cms::Status::ok);
+        CMS_TEST_REQUIRE(tracked.emplace(overwriteCounts, 2)
+            == cms::Status::ok);
+        CMS_TEST_REQUIRE(tracked.emplace(overwriteCounts, 3)
+            == cms::Status::ok);
+        Tracker replacement(overwriteCounts, 4);
+        const int destructorsBefore = overwriteCounts.destructors;
+        CMS_TEST_CHECK(tracked.pushOverwrite(std::move(replacement))
+            == cms::Status::ok);
+        CMS_TEST_CHECK(overwriteCounts.destructors == destructorsBefore + 1);
+        CMS_TEST_CHECK(overwriteCounts.moves == 1);
+        CMS_TEST_CHECK(overwriteCounts.live == 4);
+        CMS_TEST_REQUIRE(tracked.front() != nullptr);
+        CMS_TEST_CHECK(tracked.front()->value == 2);
+    }
+    CMS_TEST_CHECK(overwriteCounts.live == 0);
+    CMS_TEST_CHECK(
+        overwriteCounts.destructors
+        == overwriteCounts.direct
+            + overwriteCounts.copies
+            + overwriteCounts.moves);
+
+    TrackerCounts aliasCounts{0, 0, 0, 0, 0};
+    {
+        cms::StaticQueue<AliasTracker, 3> aliasQueue;
+        CMS_TEST_REQUIRE(aliasQueue.emplace(aliasCounts, 1)
+            == cms::Status::ok);
+        CMS_TEST_REQUIRE(aliasQueue.emplace(aliasCounts, 2)
+            == cms::Status::ok);
+        CMS_TEST_REQUIRE(aliasQueue.emplace(aliasCounts, 3)
+            == cms::Status::ok);
+        CMS_TEST_REQUIRE(aliasQueue.front() != nullptr);
+        AliasTracker* const oldest = aliasQueue.front();
+
+        CMS_TEST_CHECK(aliasQueue.pushOverwrite(*oldest)
+            == cms::Status::invalid_argument);
+        CMS_TEST_CHECK(aliasQueue.size() == 3);
+        CMS_TEST_CHECK(aliasQueue.full());
+        CMS_TEST_CHECK(aliasQueue.front() == oldest);
+        CMS_TEST_CHECK(oldest->value == 1);
+        CMS_TEST_CHECK(aliasCounts.direct == 3);
+        CMS_TEST_CHECK(aliasCounts.copies == 0);
+        CMS_TEST_CHECK(aliasCounts.moves == 0);
+        CMS_TEST_CHECK(aliasCounts.destructors == 0);
+        CMS_TEST_CHECK(aliasCounts.live == 3);
+
+        CMS_TEST_CHECK(aliasQueue.pushOverwrite(std::move(*oldest))
+            == cms::Status::invalid_argument);
+        CMS_TEST_CHECK(aliasQueue.size() == 3);
+        CMS_TEST_CHECK(aliasQueue.full());
+        CMS_TEST_CHECK(aliasQueue.front() == oldest);
+        CMS_TEST_CHECK(oldest->value == 1);
+        CMS_TEST_CHECK(aliasCounts.direct == 3);
+        CMS_TEST_CHECK(aliasCounts.copies == 0);
+        CMS_TEST_CHECK(aliasCounts.moves == 0);
+        CMS_TEST_CHECK(aliasCounts.destructors == 0);
+        CMS_TEST_CHECK(aliasCounts.live == 3);
+
+        for (int expectedValue = 1; expectedValue <= 3; ++expectedValue) {
+            CMS_TEST_REQUIRE(aliasQueue.front() != nullptr);
+            CMS_TEST_CHECK(aliasQueue.front()->value == expectedValue);
+            CMS_TEST_REQUIRE(aliasQueue.pop() == cms::Status::ok);
+        }
+        CMS_TEST_CHECK(aliasQueue.empty());
+    }
+    CMS_TEST_CHECK(aliasCounts.direct == 3);
+    CMS_TEST_CHECK(aliasCounts.copies == 0);
+    CMS_TEST_CHECK(aliasCounts.moves == 0);
+    CMS_TEST_CHECK(aliasCounts.destructors == 3);
+    CMS_TEST_CHECK(aliasCounts.live == 0);
+
+    cms::StaticQueue<MoveOnly, 1> overwriteMoveOnly;
+    MoveOnly firstMoveOnly(51);
+    MoveOnly secondMoveOnly(52);
+    CMS_TEST_CHECK(overwriteMoveOnly.push(std::move(firstMoveOnly))
+        == cms::Status::ok);
+    CMS_TEST_CHECK(overwriteMoveOnly.pushOverwrite(std::move(secondMoveOnly))
+        == cms::Status::ok);
+    CMS_TEST_CHECK(firstMoveOnly.value == -1);
+    CMS_TEST_CHECK(secondMoveOnly.value == -1);
+    CMS_TEST_REQUIRE(overwriteMoveOnly.front() != nullptr);
+    CMS_TEST_CHECK(overwriteMoveOnly.front()->value == 52);
 
     TrackerCounts destructorCounts{0, 0, 0, 0, 0};
     {
@@ -331,6 +508,21 @@ int main() {
     }
     CMS_TEST_CHECK(cycles.empty());
     CMS_TEST_CHECK(cycles.size() == 0);
+
+    cms::StaticQueue<int, 3> overwriteCycles;
+    CMS_TEST_REQUIRE(overwriteCycles.push(0) == cms::Status::ok);
+    CMS_TEST_REQUIRE(overwriteCycles.push(1) == cms::Status::ok);
+    CMS_TEST_REQUIRE(overwriteCycles.push(2) == cms::Status::ok);
+    for (int value = 3; value < 1024; ++value) {
+        CMS_TEST_REQUIRE(overwriteCycles.pushOverwrite(value)
+            == cms::Status::ok);
+    }
+    for (int expectedValue = 1021; expectedValue < 1024; ++expectedValue) {
+        CMS_TEST_REQUIRE(overwriteCycles.front() != nullptr);
+        CMS_TEST_CHECK(*overwriteCycles.front() == expectedValue);
+        CMS_TEST_REQUIRE(overwriteCycles.pop() == cms::Status::ok);
+    }
+    CMS_TEST_CHECK(overwriteCycles.empty());
 
     std::printf(
         "sizeof(cms::StaticQueue<std::uint8_t, 1>)=%zu\n",
