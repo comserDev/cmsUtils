@@ -2,6 +2,7 @@
 #include <cstdio>
 
 #include <cms/util/log/ansi_formatter.h>
+#include <cms/util/log/async_logger.h>
 #include <cms/util/log/level_filter.h>
 #include <cms/util/log/printf_log.h>
 #include <cms/util/log/runtime_ansi_formatter.h>

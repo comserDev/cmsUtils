@@ -57,6 +57,9 @@
 ---
 
 ## 3. cms::AsyncLogger & cms::LoggerBase
+
+V2의 `cms::util::log::AsyncLogger`는 `StaticQueue`를 소유하는 deterministic fixed-capacity 구성이다. 같은 logging algorithm에 dynamic storage가 필요하면 `<cms/util/log/std_queue_async_logger.h>`의 `cms::util::log::StdQueueAsyncLogger`를 opt-in으로 사용한다. 후자는 `std::queue`를 사용하므로 runtime allocation이 가능하고 `capacity()`, `full()`, full queue policy를 제공하지 않으며, allocation/exception semantics는 standard container와 allocator contract를 따른다.
+
 Thin Template 패턴이 적용된 고성능 비동기 로거입니다.
 
 ### 설정 및 제어

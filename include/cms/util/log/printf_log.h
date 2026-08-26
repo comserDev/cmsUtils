@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <utility>
 
-#include <cms/util/log/async_logger.h>
 #include <cms/util/log/level.h>
 #include <cms/util/status.h>
 #include <cms/util/string_view.h>
@@ -15,26 +14,9 @@ namespace log {
 
 // libc printf semantics를 사용하는 optional producer-side helper다.
 // MessageBytes에는 terminating NUL이 포함되며 truncation된 message는 enqueue하지 않는다.
-template<
-    std::size_t MessageBytes,
-    std::size_t QueueCapacity,
-    class Clock,
-    class Sink,
-    class Mutex,
-    class Formatter,
-    class LevelFilter,
-    class FullQueuePolicy,
-    class... Args>
+template<class Logger, class... Args>
 Status logf(
-    AsyncLogger<
-        MessageBytes,
-        QueueCapacity,
-        Clock,
-        Sink,
-        Mutex,
-        Formatter,
-        LevelFilter,
-        FullQueuePolicy>& logger,
+    Logger& logger,
     Level level,
     const char* format,
     Args&&... args) {
@@ -46,7 +28,10 @@ Status logf(
         return Status::invalid_argument;
     }
 
-    char formatted[MessageBytes] = {};
+    constexpr std::size_t messageBytes = Logger::messageCapacity();
+    static_assert(messageBytes > 0, "logger message capacity must be positive");
+
+    char formatted[messageBytes] = {};
     const int produced = std::snprintf(
         formatted,
         sizeof(formatted),
@@ -57,7 +42,7 @@ Status logf(
     }
 
     const std::size_t payloadSize = static_cast<std::size_t>(produced);
-    if (payloadSize >= MessageBytes) {
+    if (payloadSize >= messageBytes) {
         return Status::no_space;
     }
 

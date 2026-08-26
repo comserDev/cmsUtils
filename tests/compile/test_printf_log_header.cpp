@@ -1,5 +1,6 @@
 #include <type_traits>
 
+#include <cms/util/log/async_logger.h>
 #include <cms/util/log/printf_log.h>
 #include <cms/util/sync/null_mutex.h>
 

@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <cms/util/log/async_logger.h>
 #include <cms/util/log/printf_log.h>
 #include <cms/util/static_string.h>
 #include <cms/util/sync/null_mutex.h>

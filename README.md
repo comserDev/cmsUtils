@@ -6,7 +6,7 @@
 
 ## 🛠 Technical Highlights / 주요 특징
 
-- **Zero-Heap Architecture / 제로 힙 구조**: Eliminates runtime memory allocation (`malloc`/`new`) to prevent heap fragmentation. 모든 문자열은 정적 배열에 저장되어 시스템 안정성이 극대화됩니다.
+- **Deterministic / Zero-Heap Path**: `StaticString`, `StaticQueue`, `AsyncLogger` 같은 fixed-capacity 컴포넌트는 runtime allocation 없이 동작합니다. Host용 dynamic resource는 별도 opt-in API에서만 사용합니다.
 - **UTF-8 Awareness / UTF-8 지원**: Provides logical character-based indexing and slicing, preventing corruption of multi-byte characters. 한글 등 멀티바이트 문자가 깨지는 것을 방지합니다.
 - **Thread-Safe Circular Queues / 스레드 안전 큐**: High-performance, lock-protected circular buffers for inter-task communication. 멀티태스킹 환경에서 안전한 데이터 교환을 지원합니다.
 - **AsyncLogger (Thin Template) / 비동기 로거**: A lightweight logger that minimizes code bloat using the Thin Template pattern. 템플릿 비대화를 방지하면서도 강력한 스타일링과 비동기 로깅을 제공합니다.
@@ -78,6 +78,8 @@ if (queue.pop(val)) {
 ```
 
 ### 4. 고성능 비동기 로거 (AsyncLogger)
+
+`cms::util::log::AsyncLogger`는 `StaticQueue`를 사용하는 fixed-capacity logger이며 `capacity()`, `full()`, full queue policy를 제공합니다. `cms::util::log::StdQueueAsyncLogger`는 `<cms/util/log/std_queue_async_logger.h>`에서 명시적으로 선택하는 host용 logger로, `std::queue`의 dynamic storage를 사용하며 capacity/full/overwrite contract를 제공하지 않습니다. 할당과 exception 동작은 underlying standard container/allocator contract를 따릅니다.
 
 ```cpp
 #include <cmsAsyncLogger.h>

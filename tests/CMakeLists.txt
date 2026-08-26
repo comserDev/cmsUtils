@@ -1054,3 +1054,49 @@ target_include_directories(cms_system_clock_tests
 target_compile_features(cms_system_clock_tests PRIVATE cxx_std_17)
 cms_configure_target(cms_system_clock_tests)
 add_test(NAME cms.system_clock COMMAND cms_system_clock_tests)
+
+add_library(cms_std_queue_async_logger_header_compile OBJECT
+    compile/test_std_queue_async_logger_header.cpp
+)
+
+target_include_directories(cms_std_queue_async_logger_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_std_queue_async_logger_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_std_queue_async_logger_header_compile)
+
+add_library(cms_std_queue_async_logger_compile_contract OBJECT
+    compile/test_std_queue_async_logger_contract.cpp
+)
+
+target_link_libraries(cms_std_queue_async_logger_compile_contract
+    PRIVATE
+        cms_utils
+)
+
+target_compile_features(
+    cms_std_queue_async_logger_compile_contract PRIVATE cxx_std_17)
+cms_configure_target(cms_std_queue_async_logger_compile_contract)
+
+add_executable(cms_std_queue_async_logger_tests
+    unit/test_std_queue_async_logger.cpp
+)
+
+target_link_libraries(cms_std_queue_async_logger_tests
+    PRIVATE
+        cms_utils
+)
+
+target_include_directories(cms_std_queue_async_logger_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_std_queue_async_logger_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_std_queue_async_logger_tests)
+add_test(
+    NAME cms.std_queue_async_logger
+    COMMAND cms_std_queue_async_logger_tests)
