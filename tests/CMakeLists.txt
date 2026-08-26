@@ -881,3 +881,53 @@ cms_configure_target(cms_async_logger_styled_tests)
 add_test(
     NAME cms.async_logger_styled
     COMMAND cms_async_logger_styled_tests)
+
+add_library(cms_printf_log_header_compile OBJECT
+    compile/test_printf_log_header.cpp
+)
+
+target_include_directories(cms_printf_log_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(cms_printf_log_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_printf_log_header_compile)
+
+add_executable(cms_printf_log_tests
+    unit/test_printf_log.cpp
+)
+
+target_link_libraries(cms_printf_log_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_printf_log_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_printf_log_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_printf_log_tests)
+add_test(NAME cms.printf_log COMMAND cms_printf_log_tests)
+
+add_executable(cms_printf_log_integration_tests
+    unit/test_printf_log_integration.cpp
+)
+
+target_link_libraries(cms_printf_log_integration_tests
+    PRIVATE
+        cms_embedded_utils
+)
+
+target_include_directories(cms_printf_log_integration_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+
+target_compile_features(cms_printf_log_integration_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_printf_log_integration_tests)
+add_test(
+    NAME cms.printf_log_integration
+    COMMAND cms_printf_log_integration_tests)

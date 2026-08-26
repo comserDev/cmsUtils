@@ -267,9 +267,16 @@ public:
     AsyncLogger(AsyncLogger&&) = delete;
     AsyncLogger& operator=(AsyncLogger&&) = delete;
 
+    // Queue나 Clock을 건드리지 않고 현재 LevelFilter policy만 조회한다.
+    // Runtime 설정과 동시에 호출하려면 기존 filter contract대로 외부 동기화한다.
+    bool wouldLog(Level level) const
+        noexcept(noexcept(this->allowsLevel(level))) {
+        return this->allowsLevel(level);
+    }
+
     Status log(Level level, StringView message) {
         // Level filter는 enqueue 시점에 적용하고 runtime color는 drain 시점에 적용한다.
-        if (!this->allowsLevel(level)) {
+        if (!wouldLog(level)) {
             return Status::ok;
         }
         if (message.size() > MessageBytes - 1) {

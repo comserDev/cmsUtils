@@ -543,6 +543,21 @@ static_assert(std::is_same<
         cms::log::Level::info, cms::StringView())),
     cms::Status>::value, "log has the wrong return type");
 static_assert(std::is_same<
+    decltype(std::declval<const Logger&>().wouldLog(
+        cms::log::Level::info)),
+    bool>::value, "wouldLog has the wrong return type");
+static_assert(noexcept(std::declval<const Logger&>().wouldLog(
+    cms::log::Level::info)),
+    "wouldLog must preserve the filter noexcept contract");
+static_assert(std::is_same<
+    decltype(std::declval<const RuntimeLevelPlainLogger&>().wouldLog(
+        cms::log::Level::warning)),
+    bool>::value, "runtime-filter wouldLog has the wrong return type");
+static_assert(noexcept(
+    std::declval<const RuntimeLevelPlainLogger&>().wouldLog(
+        cms::log::Level::warning)),
+    "runtime-filter wouldLog must preserve noexcept");
+static_assert(std::is_same<
     decltype(std::declval<Logger&>().drainOne()),
     cms::Status>::value, "drainOne has the wrong return type");
 static_assert(std::is_same<
