@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.20)
 
 project(cmsUtils LANGUAGES CXX)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 option(CMS_ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer" OFF)
 option(CMS_ENABLE_UNDEFINED_SANITIZER "Enable UndefinedBehaviorSanitizer" OFF)
 
@@ -119,14 +122,55 @@ add_library(cms_utils STATIC
     src/utf8.cpp
 )
 
+add_library(cms::utils ALIAS cms_utils)
+
+set_target_properties(cms_utils PROPERTIES
+    EXPORT_NAME utils
+)
+
 target_compile_features(cms_utils PUBLIC cxx_std_17)
 
-target_include_directories(cms_utils PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+target_include_directories(cms_utils
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 cms_configure_target(cms_utils)
+
+set(cmsUtils_INSTALL_CMAKEDIR
+    "${CMAKE_INSTALL_LIBDIR}/cmake/cmsUtils"
+)
+
+install(TARGETS cms_utils
+    EXPORT cmsUtilsTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(DIRECTORY include/cms/util
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cms
+)
+
+configure_package_config_file(
+    cmake/cmsUtilsConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/cmsUtilsConfig.cmake"
+    INSTALL_DESTINATION ${cmsUtils_INSTALL_CMAKEDIR}
+)
+
+install(EXPORT cmsUtilsTargets
+    FILE cmsUtilsTargets.cmake
+    NAMESPACE cms::
+    DESTINATION ${cmsUtils_INSTALL_CMAKEDIR}
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/cmsUtilsConfig.cmake"
+    DESTINATION ${cmsUtils_INSTALL_CMAKEDIR}
+)
 
 include(CTest)
 
