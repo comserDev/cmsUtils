@@ -120,9 +120,13 @@ float peak = str.peakUtilization();    // 객체 생성 후 최대 도달 사용
 
 ## 🛠 빌드 설정 권장사항
 
-한글 깨짐 방지 및 최신 C++ 기능을 위해 `platformio.ini`에 아래 설정을 추가하는 것을 권장합니다.
+`cmsUtils`는 C++17이 필요합니다. ESP32 Arduino의 기본 C++11 flag를 제거하고
+UTF-8 입출력 charset과 C++17을 명시합니다.
 
 ```ini
+build_unflags =
+    -std=gnu++11
+
 build_flags =
     -std=gnu++17
     -finput-charset=UTF-8

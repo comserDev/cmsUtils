@@ -30,6 +30,12 @@ struct TestSink {
     }
 };
 
+struct ThrowingLevelFilter {
+    static bool allows(cms::util::log::Level) {
+        return true;
+    }
+};
+
 struct ExternalMutex {
     void lock() noexcept {}
     void unlock() noexcept {}
@@ -185,6 +191,14 @@ using ExplicitPlainNoFilterLogger = cms::util::log::AsyncLogger<
     cms::util::sync::NullMutex,
     cms::util::log::PlainFormatter,
     cms::util::log::NoLevelFilter>;
+using ThrowingFilterLogger = cms::util::log::AsyncLogger<
+    16,
+    4,
+    TestClock,
+    TestSink,
+    cms::util::sync::NullMutex,
+    cms::util::log::PlainFormatter,
+    ThrowingLevelFilter>;
 using ExplicitRejectLogger = cms::util::log::AsyncLogger<
     16,
     4,
@@ -601,6 +615,9 @@ static_assert(std::is_same<
 static_assert(noexcept(std::declval<const Logger&>().wouldLog(
     cms::util::log::Level::info)),
     "wouldLog must preserve the filter noexcept contract");
+static_assert(!noexcept(std::declval<const ThrowingFilterLogger&>().wouldLog(
+    cms::util::log::Level::info)),
+    "wouldLog must not hide a throwing filter contract");
 static_assert(std::is_same<
     decltype(std::declval<const RuntimeLevelPlainLogger&>().wouldLog(
         cms::util::log::Level::warning)),
