@@ -15,7 +15,9 @@ struct ContractClock {
 };
 
 struct ContractSink {
-    void write(cms::util::StringView) noexcept {}
+    cms::util::Status write(cms::util::StringView) noexcept {
+        return cms::util::Status::ok;
+    }
 };
 
 template<class T, class = void>

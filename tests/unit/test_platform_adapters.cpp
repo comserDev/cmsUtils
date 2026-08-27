@@ -28,9 +28,9 @@ struct CapturingSink {
     explicit CapturingSink(SinkState& state) noexcept
         : state_(&state) {}
 
-    void write(cms::util::StringView text) noexcept {
+    cms::util::Status write(cms::util::StringView text) noexcept {
         ++state_->writes;
-        (void)state_->line.assign(text);
+        return state_->line.assign(text).status;
     }
 
 private:
@@ -82,7 +82,8 @@ int main() {
     CMS_TEST_CHECK(second >= first);
 
     cms::util::platform::StdoutSink stdoutSink;
-    stdoutSink.write(cms::util::StringView());
+    CMS_TEST_CHECK(stdoutSink.write(cms::util::StringView())
+        == cms::util::Status::ok);
 
     using Logger = cms::util::log::AsyncLogger<
         16,

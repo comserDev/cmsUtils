@@ -81,6 +81,8 @@ if (queue.pop(val)) {
 
 `cms::util::log::AsyncLogger`는 `StaticQueue`를 사용하는 fixed-capacity logger이며 `capacity()`, `full()`, full queue policy를 제공합니다. `cms::util::log::StdQueueAsyncLogger`는 `<cms/util/log/std_queue_async_logger.h>`에서 명시적으로 선택하는 host용 logger로, `std::queue`의 dynamic storage를 사용하며 capacity/full/overwrite contract를 제공하지 않습니다. 할당과 exception 동작은 underlying standard container/allocator contract를 따릅니다.
 
+V2 sink는 `Status write(StringView)` contract를 사용한다. `drainOne()`은 formatter 성공 후 sink가 반환한 Status를 그대로 전달하며, 실패한 record도 이미 queue에서 제거되어 자동 retry/requeue되지 않는다. Host file output은 `StdFileSink`, 두 destination fan-out은 allocation 없는 `TeeSink<A, B>`를 opt-in으로 사용할 수 있다.
+
 ```cpp
 #include <cmsAsyncLogger.h>
 

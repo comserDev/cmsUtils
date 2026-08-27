@@ -41,14 +41,15 @@ struct SinkState {
 struct CapturingSink {
     explicit CapturingSink(SinkState& state) noexcept : state_(&state) {}
 
-    void write(cms::util::StringView value) noexcept {
+    cms::util::Status write(cms::util::StringView value) noexcept {
         if (state_->writes >= 8
             || state_->lines[state_->writes].assign(value).status
                 != cms::util::Status::ok) {
             state_->failed = true;
-            return;
+            return cms::util::Status::io_error;
         }
         ++state_->writes;
+        return cms::util::Status::ok;
     }
 
 private:

@@ -24,12 +24,13 @@ struct FakeSerial {
         for (std::size_t index = 0; index < size && index < 16; ++index) {
             bytes[index] = data[index];
         }
-        return size;
+        return shortWrite ? size - 1 : size;
     }
 
     std::uint8_t bytes[16] = {};
     std::size_t receivedSize = 0;
     std::size_t calls = 0;
+    bool shortWrite = false;
 };
 
 } // namespace
@@ -38,14 +39,20 @@ int main() {
     FakeSerial serial;
     cms::util::platform::ArduinoSerialSink<FakeSerial> serialSink(serial);
     const char payload[] = {'A', '\0', 'B'};
-    serialSink.write(cms::util::StringView(payload, sizeof(payload)));
+    CMS_TEST_CHECK(serialSink.write(
+        cms::util::StringView(payload, sizeof(payload)))
+        == cms::util::Status::ok);
     CMS_TEST_CHECK(serial.calls == 1);
     CMS_TEST_CHECK(serial.receivedSize == sizeof(payload));
     CMS_TEST_CHECK(serial.bytes[0] == 'A');
     CMS_TEST_CHECK(serial.bytes[1] == 0);
     CMS_TEST_CHECK(serial.bytes[2] == 'B');
-    serialSink.write(cms::util::StringView());
+    CMS_TEST_CHECK(serialSink.write(cms::util::StringView())
+        == cms::util::Status::ok);
     CMS_TEST_CHECK(serial.calls == 1);
+    serial.shortWrite = true;
+    CMS_TEST_CHECK(serialSink.write("x") == cms::util::Status::io_error);
+    CMS_TEST_CHECK(serial.calls == 2);
 
     cms::util::platform::ArduinoMillisClock millisClock;
     cms_test_arduino::setMillis(0);

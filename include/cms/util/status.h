@@ -14,7 +14,8 @@ enum class Status : std::uint8_t {
     invalid_argument,
     invalid_utf8,
     out_of_range,
-    unsupported
+    unsupported,
+    io_error
 };
 
 struct WriteResult {

@@ -59,19 +59,22 @@ struct CapturingSink {
     explicit CapturingSink(SinkState& state) noexcept
         : state_(&state) {}
 
-    void write(cms::util::StringView text) noexcept {
+    cms::util::Status write(cms::util::StringView text) noexcept {
         if (state_->queueMutex != nullptr && state_->queueMutex->locked) {
             state_->observedLockedMutex = true;
         }
         if (state_->writes >= 16) {
             state_->captureFailed = true;
-            return;
+            return cms::util::Status::io_error;
         }
         if (state_->lines[state_->writes].assign(text).status
             != cms::util::Status::ok) {
             state_->captureFailed = true;
         }
         ++state_->writes;
+        return state_->captureFailed
+            ? cms::util::Status::io_error
+            : cms::util::Status::ok;
     }
 
 private:

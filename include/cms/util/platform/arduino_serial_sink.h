@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include <cms/util/status.h>
 #include <cms/util/string_view.h>
 
 namespace cms {
@@ -16,14 +17,16 @@ public:
     explicit ArduinoSerialSink(Serial& serial) noexcept
         : serial_(&serial) {}
 
-    void write(StringView text) {
+    Status write(StringView text) {
         if (text.empty()) {
-            return;
+            return Status::ok;
         }
 
-        (void)serial_->write(
-            reinterpret_cast<const std::uint8_t*>(text.data()),
-            text.size());
+        return serial_->write(
+                   reinterpret_cast<const std::uint8_t*>(text.data()),
+                   text.size()) == text.size()
+            ? Status::ok
+            : Status::io_error;
     }
 
 private:

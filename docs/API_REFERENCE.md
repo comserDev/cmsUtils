@@ -60,6 +60,10 @@
 
 V2의 `cms::util::log::AsyncLogger`는 `StaticQueue`를 소유하는 deterministic fixed-capacity 구성이다. 같은 logging algorithm에 dynamic storage가 필요하면 `<cms/util/log/std_queue_async_logger.h>`의 `cms::util::log::StdQueueAsyncLogger`를 opt-in으로 사용한다. 후자는 `std::queue`를 사용하므로 runtime allocation이 가능하고 `capacity()`, `full()`, full queue policy를 제공하지 않으며, allocation/exception semantics는 standard container와 allocator contract를 따른다.
 
+V2 sink contract는 `Status write(StringView)`다. `drainOne()`은 sink Status를 그대로 반환하고 sink 실패 시 이미 제거한 record를 retry/requeue하지 않는다. 기존 custom sink의 `void write(StringView)`는 성공 시 `Status::ok`, 실제 backend 실패 시 적절한 Status를 반환하도록 migration해야 한다.
+
+`cms::util::platform::StdFileSink`는 host stdio file handle을 소유하며 binary append/truncate, embedded NUL을 포함한 exact byte write, explicit flush/close를 제공한다. write 성공은 stdio stream acceptance이며 durable storage를 뜻하지 않는다. `cms::util::log::TeeSink<A, B>`는 Status 실패에도 두 sink를 호출하고 첫 non-ok Status를 반환한다. 이미 성공한 output은 rollback되지 않으며 resource contract는 contained sink의 합이다.
+
 Thin Template 패턴이 적용된 고성능 비동기 로거입니다.
 
 ### 설정 및 제어

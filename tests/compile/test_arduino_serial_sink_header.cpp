@@ -1,7 +1,11 @@
 #include <cms/util/platform/arduino_serial_sink.h>
 
 struct HeaderSerial {
-    void write(const unsigned char*, decltype(sizeof(0))) {}
+    decltype(sizeof(0)) write(
+        const unsigned char*,
+        decltype(sizeof(0)) size) {
+        return size;
+    }
 };
 
 using HeaderSink = cms::util::platform::ArduinoSerialSink<HeaderSerial>;

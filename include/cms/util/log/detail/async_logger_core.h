@@ -445,9 +445,8 @@ public:
             return formatted.status;
         }
 
-        // queue lock을 풀고 나서 sink I/O를 수행한다.
-        sink_.write(line.view());
-        return Status::ok;
+        // queue lock을 풀고 나서 sink I/O를 수행한다. 실패해도 record는 requeue하지 않는다.
+        return sink_.write(line.view());
     }
 
     // mode는 drain 시점에 적용한다. drainOne과 동시에 변경하려면 외부 동기화한다.

@@ -15,7 +15,9 @@ struct TestClock {
 };
 
 struct TestSink {
-    void write(cms::util::StringView) noexcept {}
+    cms::util::Status write(cms::util::StringView) noexcept {
+        return cms::util::Status::ok;
+    }
 };
 
 struct TestSerial {
@@ -55,5 +57,9 @@ static_assert(std::is_same<
 static_assert(std::is_same<
     decltype(std::declval<cms::util::platform::StdoutSink&>().write(
         cms::util::StringView())),
-    void>::value,
-    "StdoutSink write must return void");
+    cms::util::Status>::value,
+    "StdoutSink write must return Status");
+static_assert(std::is_same<
+    decltype(std::declval<SerialSink&>().write(cms::util::StringView())),
+    cms::util::Status>::value,
+    "ArduinoSerialSink write must return Status");

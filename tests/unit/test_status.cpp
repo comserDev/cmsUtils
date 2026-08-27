@@ -5,6 +5,8 @@
 #include "test.h"
 
 int main() {
+    CMS_TEST_CHECK(cms::util::Status::io_error
+        != cms::util::Status::no_space);
     const cms::util::WriteResult success{
         cms::util::Status::ok,
         5,

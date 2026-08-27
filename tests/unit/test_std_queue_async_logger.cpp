@@ -42,14 +42,15 @@ struct SinkState {
 struct TestSink {
     explicit TestSink(SinkState& state) noexcept : state_(&state) {}
 
-    void write(cms::util::StringView text) noexcept {
+    cms::util::Status write(cms::util::StringView text) noexcept {
         if (state_->writes >= 16
             || state_->lines[state_->writes].assign(text).status
                 != cms::util::Status::ok) {
             state_->failed = true;
-            return;
+            return cms::util::Status::io_error;
         }
         ++state_->writes;
+        return cms::util::Status::ok;
     }
 
 private:
@@ -65,8 +66,9 @@ struct GrowthClock {
 };
 
 struct GrowthSink {
-    void write(cms::util::StringView) noexcept {
+    cms::util::Status write(cms::util::StringView) noexcept {
         ++writes;
+        return cms::util::Status::ok;
     }
 
     static std::size_t writes;
@@ -85,8 +87,9 @@ struct AtomicClock {
 std::atomic<cms::util::log::Timestamp> AtomicClock::next{0};
 
 struct AtomicSink {
-    void write(cms::util::StringView) noexcept {
+    cms::util::Status write(cms::util::StringView) noexcept {
         ++writes;
+        return cms::util::Status::ok;
     }
 
     static std::size_t writes;

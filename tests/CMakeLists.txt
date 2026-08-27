@@ -1100,3 +1100,43 @@ cms_configure_target(cms_std_queue_async_logger_tests)
 add_test(
     NAME cms.std_queue_async_logger
     COMMAND cms_std_queue_async_logger_tests)
+
+add_library(cms_tee_sink_header_compile OBJECT
+    compile/test_tee_sink_header.cpp
+)
+
+target_compile_features(cms_tee_sink_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_tee_sink_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_tee_sink_header_compile)
+
+add_library(cms_std_file_sink_header_compile OBJECT
+    compile/test_std_file_sink_header.cpp
+)
+
+target_compile_features(cms_std_file_sink_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_std_file_sink_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_std_file_sink_header_compile)
+
+add_executable(cms_sink_contract_tests
+    unit/test_sink_contract.cpp
+)
+
+target_link_libraries(cms_sink_contract_tests PRIVATE cms_utils)
+target_include_directories(cms_sink_contract_tests PRIVATE support)
+target_compile_features(cms_sink_contract_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_sink_contract_tests)
+add_test(NAME cms.sink_contract COMMAND cms_sink_contract_tests)
+
+add_executable(cms_std_file_sink_tests
+    unit/test_std_file_sink.cpp
+)
+
+target_link_libraries(cms_std_file_sink_tests PRIVATE cms_utils)
+target_include_directories(cms_std_file_sink_tests PRIVATE support)
+target_compile_features(cms_std_file_sink_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_std_file_sink_tests)
+add_test(NAME cms.std_file_sink COMMAND cms_std_file_sink_tests)

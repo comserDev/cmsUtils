@@ -10,7 +10,9 @@ struct HeaderClock {
 };
 
 struct HeaderSink {
-    void write(cms::util::StringView) noexcept {}
+    cms::util::Status write(cms::util::StringView) noexcept {
+        return cms::util::Status::ok;
+    }
 };
 
 using HeaderLogger = cms::util::log::StdQueueAsyncLogger<
