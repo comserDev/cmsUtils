@@ -25,6 +25,10 @@ ParseResult<std::int64_t> signedInteger(
     StringView input,
     unsigned int base = 10) noexcept;
 
+// fixed decimal prefix만 parsing하며 exponent, whitespace, locale 표현은 해석하지 않는다.
+// 변환 결과는 double 누적 결과이며 correctly-rounded decimal conversion을 보장하지 않는다.
+ParseResult<double> floatingPoint(StringView input) noexcept;
+
 } // namespace parse
 } // namespace util
 } // namespace cms

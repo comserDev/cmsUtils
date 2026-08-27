@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
@@ -30,6 +31,18 @@ void checkSigned(
     std::size_t consumed) {
     const cms::util::ParseResult<std::int64_t> result =
         cms::util::parse::signedInteger(input, base);
+    CMS_TEST_CHECK(result.status == status);
+    CMS_TEST_CHECK(result.value == value);
+    CMS_TEST_CHECK(result.consumed == consumed);
+}
+
+void checkFloating(
+    cms::util::StringView input,
+    cms::util::Status status,
+    double value,
+    std::size_t consumed) {
+    const cms::util::ParseResult<double> result =
+        cms::util::parse::floatingPoint(input);
     CMS_TEST_CHECK(result.status == status);
     CMS_TEST_CHECK(result.value == value);
     CMS_TEST_CHECK(result.consumed == consumed);
@@ -76,6 +89,71 @@ int main() {
     checkSigned("+0", 10, cms::util::Status::ok, 0, 2);
     checkUnsigned("123Z", 10, cms::util::Status::ok, 123, 3);
     checkSigned("-123Z", 10, cms::util::Status::ok, -123, 4);
+
+    checkFloating("0", cms::util::Status::ok, 0.0, 1);
+    checkFloating("123", cms::util::Status::ok, 123.0, 3);
+    checkFloating("-12.50", cms::util::Status::ok, -12.5, 6);
+    checkFloating("+.5", cms::util::Status::ok, 0.5, 3);
+    checkFloating(".25", cms::util::Status::ok, 0.25, 3);
+    checkFloating("1.", cms::util::Status::ok, 1.0, 2);
+    checkFloating("12.5ms", cms::util::Status::ok, 12.5, 4);
+    checkFloating("1e3", cms::util::Status::ok, 1.0, 1);
+
+    const cms::util::ParseResult<double> negativeZero =
+        cms::util::parse::floatingPoint("-0");
+    CMS_TEST_CHECK(negativeZero.status == cms::util::Status::ok);
+    CMS_TEST_CHECK(negativeZero.value == 0.0);
+    CMS_TEST_CHECK(std::signbit(negativeZero.value));
+    CMS_TEST_CHECK(negativeZero.consumed == 2);
+    const cms::util::ParseResult<double> negativeDecimalZero =
+        cms::util::parse::floatingPoint("-0.0");
+    CMS_TEST_CHECK(negativeDecimalZero.status == cms::util::Status::ok);
+    CMS_TEST_CHECK(negativeDecimalZero.value == 0.0);
+    CMS_TEST_CHECK(std::signbit(negativeDecimalZero.value));
+    CMS_TEST_CHECK(negativeDecimalZero.consumed == 4);
+
+    checkFloating("", cms::util::Status::invalid_argument, 0.0, 0);
+    checkFloating(".", cms::util::Status::invalid_argument, 0.0, 0);
+    checkFloating("+", cms::util::Status::invalid_argument, 0.0, 0);
+    checkFloating("-", cms::util::Status::invalid_argument, 0.0, 0);
+    checkFloating("+.", cms::util::Status::invalid_argument, 0.0, 0);
+    checkFloating(" 1", cms::util::Status::invalid_argument, 0.0, 0);
+
+    const char floatingEmbeddedNul[] = {'1', '2', '.', '5', '\0', '7'};
+    checkFloating(
+        cms::util::StringView(
+            floatingEmbeddedNul,
+            sizeof(floatingEmbeddedNul)),
+        cms::util::Status::ok,
+        12.5,
+        4);
+
+    char largeFinite[308];
+    for (std::size_t index = 0; index < sizeof(largeFinite); ++index) {
+        largeFinite[index] = '9';
+    }
+    const cms::util::ParseResult<double> largeFiniteResult =
+        cms::util::parse::floatingPoint(
+            cms::util::StringView(largeFinite, sizeof(largeFinite)));
+    CMS_TEST_CHECK(largeFiniteResult.status == cms::util::Status::ok);
+    CMS_TEST_CHECK(std::isfinite(largeFiniteResult.value));
+    CMS_TEST_CHECK(largeFiniteResult.consumed == sizeof(largeFinite));
+
+    char overflowing[309];
+    for (std::size_t index = 0; index < sizeof(overflowing); ++index) {
+        overflowing[index] = '9';
+    }
+    checkFloating(
+        cms::util::StringView(overflowing, sizeof(overflowing)),
+        cms::util::Status::out_of_range,
+        0.0,
+        308);
+
+    checkFloating(
+        "0.123456789012345678901234567890123456789",
+        cms::util::Status::ok,
+        0.12345678901234568,
+        41);
 
     checkUnsigned(cms::util::StringView(), 10, cms::util::Status::invalid_argument, 0, 0);
     checkUnsigned(
@@ -254,6 +332,6 @@ int main() {
         (std::numeric_limits<std::int64_t>::min)(),
         16);
 
-    std::printf("cms::util::parse integer coverage complete\n");
+    std::printf("cms::util::parse coverage complete\n");
     return cms::test::finish();
 }

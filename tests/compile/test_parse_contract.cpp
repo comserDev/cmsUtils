@@ -9,6 +9,8 @@ using UnsignedParse = cms::util::ParseResult<std::uint64_t> (*)(
 using SignedParse = cms::util::ParseResult<std::int64_t> (*)(
     cms::util::StringView,
     unsigned int) noexcept;
+using FloatingParse = cms::util::ParseResult<double> (*)(
+    cms::util::StringView) noexcept;
 
 static_assert(
     std::is_same<
@@ -20,3 +22,8 @@ static_assert(
         decltype(&cms::util::parse::signedInteger),
         SignedParse>::value,
     "signedInteger has the wrong signature");
+static_assert(
+    std::is_same<
+        decltype(&cms::util::parse::floatingPoint),
+        FloatingParse>::value,
+    "floatingPoint has the wrong signature");

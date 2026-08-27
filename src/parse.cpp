@@ -1,5 +1,6 @@
 #include <cms/util/parse.h>
 
+#include <cmath>
 #include <cstddef>
 #include <limits>
 
@@ -139,6 +140,53 @@ ParseResult<std::int64_t> signedInteger(
         Status::ok,
         -static_cast<std::int64_t>(magnitude.value),
         magnitude.consumed};
+}
+
+ParseResult<double> floatingPoint(StringView input) noexcept {
+    if (input.empty()) {
+        return {Status::invalid_argument, 0.0, 0};
+    }
+
+    std::size_t offset = 0;
+    bool negative = false;
+    if (input[0] == '+' || input[0] == '-') {
+        negative = input[0] == '-';
+        offset = 1;
+    }
+
+    double value = 0.0;
+    bool hasDigit = false;
+    while (offset < input.size()
+        && input[offset] >= '0'
+        && input[offset] <= '9') {
+        hasDigit = true;
+        const double digit = static_cast<double>(input[offset] - '0');
+        const double next = value * 10.0 + digit;
+        if (!std::isfinite(next)) {
+            return {Status::out_of_range, 0.0, offset};
+        }
+        value = next;
+        ++offset;
+    }
+
+    if (offset < input.size() && input[offset] == '.') {
+        ++offset;
+        double place = 0.1;
+        while (offset < input.size()
+            && input[offset] >= '0'
+            && input[offset] <= '9') {
+            hasDigit = true;
+            const double digit = static_cast<double>(input[offset] - '0');
+            value += digit * place;
+            place *= 0.1;
+            ++offset;
+        }
+    }
+
+    if (!hasDigit) {
+        return {Status::invalid_argument, 0.0, 0};
+    }
+    return {Status::ok, negative ? -value : value, offset};
 }
 
 } // namespace parse
