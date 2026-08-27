@@ -13,6 +13,10 @@ using SignedFormat = cms::util::WriteResult (*)(
     cms::util::StringBuffer,
     unsigned int,
     bool) noexcept;
+using FloatingFormat = cms::util::WriteResult (*)(
+    double,
+    cms::util::StringBuffer,
+    unsigned int) noexcept;
 
 static_assert(
     std::is_same<
@@ -34,3 +38,13 @@ static_assert(
         decltype(&cms::util::format::appendSignedInteger),
         SignedFormat>::value,
     "appendSignedInteger has the wrong signature");
+static_assert(
+    std::is_same<
+        decltype(&cms::util::format::floatingPoint),
+        FloatingFormat>::value,
+    "floatingPoint has the wrong signature");
+static_assert(
+    std::is_same<
+        decltype(&cms::util::format::appendFloatingPoint),
+        FloatingFormat>::value,
+    "appendFloatingPoint has the wrong signature");

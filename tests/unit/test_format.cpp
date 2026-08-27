@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
@@ -60,6 +61,22 @@ void checkSigned(
     cms::util::StringBuffer output(storage, sizeof(storage), size);
     checkResult(
         cms::util::format::signedInteger(value, output, base, uppercase),
+        cms::util::Status::ok,
+        expectedSize,
+        expectedSize);
+    checkBuffer(output, expected, expectedSize);
+}
+
+void checkFloating(
+    double value,
+    unsigned int decimalPlaces,
+    const char* expected,
+    std::size_t expectedSize) {
+    char storage[40] = "old";
+    std::size_t size = 3;
+    cms::util::StringBuffer output(storage, sizeof(storage), size);
+    checkResult(
+        cms::util::format::floatingPoint(value, output, decimalPlaces),
         cms::util::Status::ok,
         expectedSize,
         expectedSize);
@@ -130,6 +147,28 @@ int main() {
         false,
         "ffffffffffffffff",
         16);
+
+    checkFloating(0.0, 0, "0", 1);
+    checkFloating(0.0, 2, "0.00", 4);
+    checkFloating(12.5, 2, "12.50", 5);
+    checkFloating(-12.5, 2, "-12.50", 6);
+    checkFloating(1.25, 1, "1.3", 3);
+    checkFloating(-1.25, 1, "-1.3", 4);
+    checkFloating(std::nextafter(0.05, 0.0), 1, "0.0", 3);
+    checkFloating(std::nextafter(0.05, 1.0), 1, "0.1", 3);
+    checkFloating(std::nextafter(-0.05, 0.0), 1, "-0.0", 4);
+    checkFloating(std::nextafter(-0.05, -1.0), 1, "-0.1", 4);
+    checkFloating(std::nextafter(0.00000005, 0.0), 7, "0.0000000", 9);
+    checkFloating(std::nextafter(0.00000005, 1.0), 7, "0.0000001", 9);
+    checkFloating(1.999, 2, "2.00", 4);
+    checkFloating(-0.0, 2, "-0.00", 5);
+    checkFloating(1.0, 9, "1.000000000", 11);
+    checkFloating(9007199254740991.0, 0, "9007199254740991", 16);
+    checkFloating(
+        18446744073709549568.0,
+        0,
+        "18446744073709549568",
+        20);
     checkUnsigned(
         (std::numeric_limits<std::uint64_t>::max)(),
         16,
@@ -356,6 +395,93 @@ int main() {
         0);
     checkBuffer(invalidBaseOutput, "old", 3);
 
-    std::printf("cms::util::format integer coverage complete\n");
+    char invalidFloatStorage[16] = "old";
+    std::size_t invalidFloatSize = 3;
+    cms::util::StringBuffer invalidFloatOutput(
+        invalidFloatStorage,
+        sizeof(invalidFloatStorage),
+        invalidFloatSize);
+    checkResult(
+        cms::util::format::floatingPoint(1.0, invalidFloatOutput, 10),
+        cms::util::Status::invalid_argument,
+        0,
+        0);
+    checkResult(
+        cms::util::format::floatingPoint(
+            (std::numeric_limits<double>::quiet_NaN)(),
+            invalidFloatOutput),
+        cms::util::Status::invalid_argument,
+        0,
+        0);
+    checkResult(
+        cms::util::format::floatingPoint(
+            (std::numeric_limits<double>::infinity)(),
+            invalidFloatOutput),
+        cms::util::Status::invalid_argument,
+        0,
+        0);
+    checkResult(
+        cms::util::format::floatingPoint(
+            -(std::numeric_limits<double>::infinity)(),
+            invalidFloatOutput),
+        cms::util::Status::invalid_argument,
+        0,
+        0);
+    checkResult(
+        cms::util::format::floatingPoint(
+            18446744073709551616.0,
+            invalidFloatOutput,
+            0),
+        cms::util::Status::out_of_range,
+        0,
+        0);
+    checkBuffer(invalidFloatOutput, "old", 3);
+
+    char exactFloatStorage[5] = "x";
+    std::size_t exactFloatSize = 1;
+    cms::util::StringBuffer exactFloatOutput(
+        exactFloatStorage,
+        sizeof(exactFloatStorage),
+        exactFloatSize);
+    checkResult(
+        cms::util::format::floatingPoint(1.25, exactFloatOutput, 2),
+        cms::util::Status::ok,
+        4,
+        4);
+    checkBuffer(exactFloatOutput, "1.25", 4);
+
+    char shortFloatStorage[4] = "old";
+    std::size_t shortFloatSize = 3;
+    cms::util::StringBuffer shortFloatOutput(
+        shortFloatStorage,
+        sizeof(shortFloatStorage),
+        shortFloatSize);
+    checkResult(
+        cms::util::format::floatingPoint(1.25, shortFloatOutput, 2),
+        cms::util::Status::no_space,
+        0,
+        4);
+    checkBuffer(shortFloatOutput, "old", 3);
+
+    char appendFloatStorage[10] = "v=";
+    std::size_t appendFloatSize = 2;
+    cms::util::StringBuffer appendFloatOutput(
+        appendFloatStorage,
+        sizeof(appendFloatStorage),
+        appendFloatSize);
+    checkResult(
+        cms::util::format::appendFloatingPoint(1.25, appendFloatOutput, 1),
+        cms::util::Status::ok,
+        3,
+        3);
+    checkBuffer(appendFloatOutput, "v=1.3", 5);
+    checkResult(
+        cms::util::format::appendFloatingPoint(12.50, appendFloatOutput, 2),
+        cms::util::Status::no_space,
+        0,
+        5);
+    checkBuffer(appendFloatOutput, "v=1.3", 5);
+
+    std::printf("cms::util::format coverage complete\n");
     return cms::test::finish();
 }

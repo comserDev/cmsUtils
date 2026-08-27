@@ -39,6 +39,18 @@ WriteResult appendSignedInteger(
     unsigned int base = 10,
     bool uppercase = false) noexcept;
 
+// Fixed decimal만 지원하며 decimalPlaces 범위는 0..9다.
+// 반올림은 represented value를 기준으로 halfway away from zero를 사용한다.
+WriteResult floatingPoint(
+    double value,
+    StringBuffer output,
+    unsigned int decimalPlaces = 2) noexcept;
+
+WriteResult appendFloatingPoint(
+    double value,
+    StringBuffer output,
+    unsigned int decimalPlaces = 2) noexcept;
+
 } // namespace format
 } // namespace util
 } // namespace cms
