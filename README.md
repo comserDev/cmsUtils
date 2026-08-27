@@ -1,131 +1,109 @@
 # cmsUtils
 
-**General-purpose C++ Utilities with Deterministic / Zero-Heap Paths.**
+`cmsUtils`는 embedded와 host 환경에서 함께 사용할 수 있는 C++17 utility library다.
+Fixed-capacity 기반의 deterministic / zero-heap 경로와 dynamic resource를 사용하는 host
+convenience 경로를 명시적으로 분리한다.
 
-`cmsUtils`는 embedded와 host 환경에서 함께 사용할 수 있는 범용 C++ utility library입니다. Fixed-capacity 기반의 deterministic / zero-heap 경로를 보존하면서, host convenience 기능은 명시적인 opt-in component로 확장합니다.
+## 주요 기능
 
-## 🛠 Technical Highlights / 주요 특징
+- `StringView`, `StringBuffer`, `StaticString<N>`과 UTF-8/format/parse 알고리즘
+- `ByteView`, `ByteBuffer`, `StaticByteBuffer<N>`
+- bounds-checked big-endian `BinaryReader`와 `BinaryWriter`
+- one-shot/incremental CRC-32/ISO-HDLC
+- fixed-capacity `StaticQueue`와 synchronization wrapper
+- queue, clock, formatter, sink를 조합하는 `AsyncLogger`
+- `StdQueueAsyncLogger`, `StdFileSink` 같은 명시적 host opt-in component
+- Arduino, FreeRTOS, standard-library platform adapter
 
-- **Deterministic / Zero-Heap Path**: `StaticString`, `StaticQueue`, `AsyncLogger` 같은 fixed-capacity 컴포넌트는 runtime allocation 없이 동작합니다. Host용 dynamic resource는 별도 opt-in API에서만 사용합니다.
-- **UTF-8 Awareness / UTF-8 지원**: Provides logical character-based indexing and slicing, preventing corruption of multi-byte characters. 한글 등 멀티바이트 문자가 깨지는 것을 방지합니다.
-- **Thread-Safe Circular Queues / 스레드 안전 큐**: High-performance, lock-protected circular buffers for inter-task communication. 멀티태스킹 환경에서 안전한 데이터 교환을 지원합니다.
-- **AsyncLogger (Thin Template) / 비동기 로거**: A lightweight logger that minimizes code bloat using the Thin Template pattern. 템플릿 비대화를 방지하면서도 강력한 스타일링과 비동기 로깅을 제공합니다.
-- **Real-time Resource Profiling / 실시간 리소스 프로파일링**: Built-in monitoring for buffer utilization and peak usage (High Water Mark). 버퍼 사용률과 피크치를 실시간으로 모니터링합니다.
+Generic V2 API는 `cms::util` namespace와 `include/cms/util` public header 아래에 있다.
+V1의 `cms::String`, `cms::Queue`, singleton logger와 source-compatible하지 않다.
 
-## 📦 Installation / 설치 방법
+## 빠른 시작
 
-### PlatformIO
-Add the repository URL to your `platformio.ini`: / `platformio.ini` 파일의 `lib_deps` 항목에 아래와 같이 추가하세요.
+### Fixed-capacity string
+
+```cpp
+#include <cms/util/static_string.h>
+
+cms::util::StaticString<32> message;
+if (message.assign("temperature=").status == cms::util::Status::ok) {
+    (void)message.append("25.0");
+}
+```
+
+`StaticString<32>`의 32 bytes에는 terminating NUL이 포함된다. 기본 assign/append는 전체
+결과가 들어가지 않으면 destination을 변경하지 않는 transactional operation이다.
+
+### Big-endian binary encoding과 CRC
+
+```cpp
+#include <cstdint>
+
+#include <cms/util/binary_reader.h>
+#include <cms/util/binary_writer.h>
+#include <cms/util/crc32.h>
+#include <cms/util/static_byte_buffer.h>
+
+cms::util::StaticByteBuffer<16> frame;
+cms::util::BinaryWriter writer(frame.buffer());
+
+if (writer.writeUint16BigEndian(0x1234) == cms::util::Status::ok
+    && writer.writeUint32BigEndian(0x89ABCDEFU) == cms::util::Status::ok) {
+    const std::uint32_t checksum = cms::util::crc32::isoHdlc(frame.view());
+    // frame.view()와 checksum 사용
+}
+```
+
+Binary API는 byte 단위로 조합하므로 host endian과 alignment에 의존하지 않는다. 공간이나 입력이
+부족하면 buffer와 cursor를 변경하지 않는다. TLV, frame schema, message ID, session, ACK 같은
+protocol 의미는 application에 남긴다.
+
+### Fixed-capacity queue
+
+```cpp
+#include <cms/util/static_queue.h>
+
+cms::util::StaticQueue<int, 4> queue;
+if (queue.push(42) == cms::util::Status::ok) {
+    if (const int* value = queue.front()) {
+        consume(*value);
+        (void)queue.pop();
+    }
+}
+```
+
+Full queue의 기본 동작은 `Status::no_space`이며 FIFO는 바뀌지 않는다. Oldest 교체가 필요한
+경우에만 `pushOverwrite()`를 명시적으로 사용한다.
+
+## Resource contract
+
+Deterministic component는 runtime heap allocation이나 host-only dependency를 사용하지 않는다.
+여기에는 fixed byte/string/queue storage, binary reader/writer, CRC와 generic 알고리즘이 포함된다.
+
+`StdQueueAsyncLogger`, `StdMutex`, `StdFileSink`, `SystemClock` 같은 host/platform component는
+선택한 backend의 allocation, exception, OS/runtime contract를 따른다. 따라서 library 전체가
+항상 zero-heap이라고 일반화하지 않는다.
+
+## 설치와 빌드
+
+### CMake
+
+```cmake
+add_subdirectory(cmsUtils)
+target_link_libraries(my_target PRIVATE cms::utils)
+```
+
+설치된 package를 사용할 때도 `find_package(cmsUtils CONFIG REQUIRED)` 뒤 같은 target을 link한다.
+
+### PlatformIO / ESP32
 
 ```ini
 lib_deps =
     https://github.com/comserDev/cmsUtils.git
-```
 
-## 🚀 빠른 시작
-
-### 1. 선언 및 기본 사용
-
-```cpp
-#include <cmsString.h>
-
-// 64바이트 고정 크기 버퍼를 가진 문자열 선언
-cms::String<64> str = "Hello";
-
-// 스트림 스타일 결합
-str << " World! " << 2024 << " [OK]";
-
-Serial.println(str.c_str()); // "Hello World! 2024 [OK]"
-```
-
-### 2. UTF-8 안전한 조작
-
-```cpp
-cms::String<64> ko = "안녕하세요";
-
-// 논리적 글자 수 반환 (바이트 수가 아님)
-size_t len = ko.count(); // 5
-
-// 글자 단위 부분 문자열 추출
-cms::String<32> sub;
-ko.substring(sub, 0, 2); // "안녕"
-```
-
-### 3. 큐 (Queue)
-
-#### 기본 큐 (Single-task / Interrupt-safe 전용)
-뮤텍스 잠금이 없어 속도가 매우 빠르며, 단일 루프 내 데이터 보관에 적합합니다.
-```cpp
-#include <cmsQueue.h>
-cms::Queue<int, 5> q;
-q.enqueue(10);
-```
-
-#### 스레드 안전 큐 (Multi-task 전용)
-멀티태스킹 환경에서 태스크 간 데이터 교환 시 사용합니다.
-```cpp
-// 10개의 정수를 저장할 수 있는 스레드 안전 큐
-cms::ThreadSafeQueue<int, 10> queue;
-
-// 데이터 추가 (가득 차면 가장 오래된 데이터 덮어씀)
-queue.enqueue(42);
-
-// 데이터 꺼내기
-int val;
-if (queue.pop(val)) {
-    // val 사용
-}
-```
-
-### 4. 고성능 비동기 로거 (AsyncLogger)
-
-`cms::util::log::AsyncLogger`는 `StaticQueue`를 사용하는 fixed-capacity logger이며 `capacity()`, `full()`, full queue policy를 제공합니다. `cms::util::log::StdQueueAsyncLogger`는 `<cms/util/log/std_queue_async_logger.h>`에서 명시적으로 선택하는 host용 logger로, `std::queue`의 dynamic storage를 사용하며 capacity/full/overwrite contract를 제공하지 않습니다. 할당과 exception 동작은 underlying standard container/allocator contract를 따릅니다.
-
-V2 sink는 `Status write(StringView)` contract를 사용한다. `drainOne()`은 formatter 성공 후 sink가 반환한 Status를 그대로 전달하며, 실패한 record도 이미 queue에서 제거되어 자동 retry/requeue되지 않는다. Host file output은 `StdFileSink`, 두 destination fan-out은 allocation 없는 `TeeSink<A, B>`를 opt-in으로 사용할 수 있다.
-
-`ArduinoUdpSink`는 application이 초기화하고 lifetime을 관리하는 WiFiUDP-like 객체를 non-owning으로 사용하며, formatted log line 하나를 UDP packet 하나로 전송한다. 전송 실패는 `Status::io_error`로 보고하고 `TeeSink`와 조합할 수 있다.
-
-```cpp
-#include <cmsAsyncLogger.h>
-
-// 로거 인스턴스 획득 및 설정
-auto& logger = cms::AsyncLogger<>::instance();
-logger.begin(cms::LogLevel::Debug, true);
-
-// 로그 출력 (자동 스타일링 및 태그 지원)
-logger.i("시스템 시작... [Network] 연결됨");
-logger.w("센서 데이터 불안정: %d", 404);
-
-// 백그라운드 루프에서 로그 처리
-while (logger.update());
-```
-
-### 4. 리터럴 최적화
-
-문자열 리터럴을 사용할 경우 컴파일 타임에 길이를 계산하여 런타임 `strlen` 오버헤드를 제거합니다.
-
-```cpp
-if (str == "COMMAND") { ... } // 고속 비교
-str << "Data";               // 고속 결합
-```
-
-## 📊 성능 모니터링
-
-임베디드 시스템의 리소스 최적화를 위해 현재 버퍼 상태를 확인할 수 있습니다.
-
-```cpp
-float current = str.utilization();     // 현재 사용률 (%)
-float peak = str.peakUtilization();    // 객체 생성 후 최대 도달 사용률 (%)
-```
-
-## 🛠 빌드 설정 권장사항
-
-`cmsUtils`는 C++17이 필요합니다. ESP32 Arduino의 기본 C++11 flag를 제거하고
-UTF-8 입출력 charset과 C++17을 명시합니다.
-
-```ini
 build_unflags =
     -std=gnu++11
+    -std=c++11
 
 build_flags =
     -std=gnu++17
@@ -133,10 +111,19 @@ build_flags =
     -fexec-charset=UTF-8
 ```
 
-## 📄 라이선스
+CI는 GCC, Clang, MSVC와 ESP32 Xtensa GCC 8.4 compile path를 확인한다.
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+## 문서
 
----
-**Maintainer:** comser.dev
-**Repository:** github.com/comserDev/cmsUtils
+- [API reference](docs/API_REFERENCE.md)
+- [사용 예제](docs/EXAMPLES.md)
+- [Binary utilities 계약](docs/BINARY_UTILITIES.md)
+- [V1에서 V2로 마이그레이션](docs/MIGRATION_V1_TO_V2.md)
+
+## 라이선스
+
+MIT License
+
+Maintainer: comser.dev
+
+Repository: <https://github.com/comserDev/cmsUtils>

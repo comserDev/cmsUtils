@@ -286,3 +286,137 @@ HostLogger logger{Clock{}, Sink{}};
 
 Allocation과 exception 동작은 underlying standard container와 allocator를 따른다. Fixed
 capacity와 predictable storage가 필요하면 `log::AsyncLogger`를 사용한다.
+
+## 13. ByteView와 caller-owned ByteBuffer
+
+`ByteView`는 문자열 의미 없이 pointer와 byte 길이만 참조하므로 embedded NUL을 보존한다.
+`ByteBuffer`는 caller가 소유한 storage와 현재 size를 함께 alias한다. Buffer와 size 변수는
+`ByteBuffer` 및 이를 사용하는 writer보다 오래 살아야 한다.
+
+```cpp
+#include <cstddef>
+#include <cstdint>
+
+#include <cms/util/byte_buffer.h>
+
+std::uint8_t storage[32] = {};
+std::size_t payloadSize = 0;
+cms::util::ByteBuffer payload(storage, sizeof(storage), payloadSize);
+
+// Raw write 뒤 commit에 성공해야 새 size가 publish된다.
+payload.data()[0] = 0x41;
+payload.data()[1] = 0x00;
+payload.data()[2] = 0x42;
+if (payload.commit(3) == cms::util::Status::ok) {
+    consumeBytes(payload.view()); // 세 byte 모두 전달된다.
+}
+```
+
+`capacity == 0`, `size == 0`인 buffer는 `data == nullptr`이어도 valid하다. `size > capacity`나
+non-zero capacity의 null storage는 invalid binding이다. `commit()` 실패는 기존 size를 바꾸지
+않지만 raw access로 caller가 이미 바꾼 byte까지 rollback하지는 않는다.
+
+## 14. StaticByteBuffer와 big-endian writer
+
+`StaticByteBuffer<N>`은 payload storage를 직접 소유하며 최대 `N` byte를 모두 사용할 수 있다.
+String과 달리 terminating NUL 자리를 예약하지 않는다. `BinaryWriter`는 생성 시점의 buffer 끝에
+이어 쓰고 성공한 operation만 shared size를 전진시킨다.
+
+```cpp
+#include <cstdint>
+
+#include <cms/util/binary_writer.h>
+#include <cms/util/static_byte_buffer.h>
+
+cms::util::StaticByteBuffer<16> output;
+cms::util::BinaryWriter writer(output.buffer());
+
+if (writer.writeUint8(2) != cms::util::Status::ok
+    || writer.writeUint16BigEndian(0x1234) != cms::util::Status::ok
+    || writer.writeUint32BigEndian(0x89ABCDEFU) != cms::util::Status::ok) {
+    // 각 실패 operation은 buffer content, size, writer position을 바꾸지 않는다.
+    handleEncodeFailure();
+} else {
+    sendBytes(output.view());
+}
+```
+
+`writeUint16BigEndian`, `writeUint32BigEndian`, `writeUint64BigEndian`은 host byte order와
+alignment에 의존하지 않는다. `writeBytes()`는 source가 destination storage와 겹쳐도 지원한다.
+공간 부족은 `Status::no_space`, invalid output binding은 `Status::invalid_argument`다.
+
+## 15. Transactional big-endian reader
+
+Reader는 source를 소유하지 않으므로 input storage가 reader와 반환된 subview보다 오래 살아야
+한다. 입력이 부족하면 output argument와 cursor가 모두 유지된다.
+
+```cpp
+#include <cstdint>
+
+#include <cms/util/binary_reader.h>
+
+cms::util::BinaryReader reader(receivedBytes);
+std::uint8_t version = 0;
+std::uint16_t payloadLength = 0;
+
+if (reader.readUint8(version) != cms::util::Status::ok
+    || reader.readUint16BigEndian(payloadLength) != cms::util::Status::ok) {
+    rejectIncompleteInput();
+} else {
+    cms::util::ByteView payload;
+    if (reader.readBytes(payloadLength, payload) != cms::util::Status::ok) {
+        // readBytes 실패 전 position과 payload 값이 그대로 유지된다.
+        waitForMoreData();
+    } else if (!reader.empty()) {
+        rejectTrailingBytes();
+    } else {
+        processPayload(version, payload);
+    }
+}
+```
+
+`readBytes()`가 반환한 view는 원본 input을 alias한다. 독립 lifetime이 필요하면 application-owned
+storage로 복사한다. `skip()`도 count 전체가 남아 있을 때만 cursor를 전진시킨다.
+
+## 16. CRC-32/ISO-HDLC
+
+한 번에 계산할 때는 `crc32::isoHdlc()`, stream이나 여러 buffer 조각을 순서대로 계산할 때는
+`crc32::IsoHdlc`를 사용한다. `value()`는 현재까지 입력한 모든 byte의 finalized checksum을
+반환하며 호출 후에도 `update()`를 계속할 수 있다.
+
+```cpp
+#include <cstdint>
+
+#include <cms/util/crc32.h>
+
+const std::uint8_t checkBytes[] = {
+    '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+
+const std::uint32_t oneShot =
+    cms::util::crc32::isoHdlc(cms::util::ByteView(checkBytes));
+// oneShot == 0xCBF43926
+
+cms::util::crc32::IsoHdlc incremental;
+incremental.update(cms::util::ByteView(checkBytes, 4));
+incremental.update(cms::util::ByteView(checkBytes + 4, 5));
+const std::uint32_t chunked = incremental.value();
+// chunked == oneShot
+```
+
+이 CRC는 전송 오류 검출용이며 authentication, encryption, collision-resistant hash가 아니다.
+Wire format이 checksum field를 0으로 간주하도록 정의한다면 해당 field를 제외한 두 구간 또는
+0 byte 네 개를 포함한 구간을 protocol layer에서 올바른 순서로 `update()`한다.
+
+## 17. Binary utility와 protocol의 경계
+
+Binary utility는 unsigned integer와 raw byte sequence만 읽고 쓴다. 다음 의미는 application 또는
+protocol codec이 정의한다.
+
+- TLV field ID와 length 규칙
+- frame magic, version, header schema
+- message ID, correlation, ACK와 retry
+- session, authentication, transport reassembly
+
+예를 들어 TLV를 읽을 때 `BinaryReader`로 field ID와 big-endian length를 읽을 수 있지만 unknown
+field 처리, duplicate field 거부, required field 확인은 protocol decoder 책임이다. 이렇게 하면
+generic utility가 특정 firmware나 wire protocol에 종속되지 않는다.

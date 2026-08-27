@@ -66,6 +66,36 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
+  no-exceptions-rtti:
+    name: Linux / ${{ matrix.compiler }} / no exceptions or RTTI
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: GCC
+            cc: gcc
+            cxx: g++
+          - compiler: Clang
+            cc: clang
+            cxx: clang++
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+          CXXFLAGS: -fno-exceptions -fno-rtti
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
   esp32:
     name: ESP32 / Xtensa GCC 8.4 / Release
     runs-on: ubuntu-latest

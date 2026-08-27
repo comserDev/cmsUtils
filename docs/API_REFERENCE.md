@@ -475,3 +475,122 @@ Generic/deterministic header는 host/platform header에 의존하지 않는다. 
 `std_mutex.h`, host clock/sink header, `printf_log.h`, `std_queue_async_logger.h`에 격리된다.
 Arduino/FreeRTOS dependency도 해당 adapter header에만 있다. `detail` header는 public include
 tree에 존재하더라도 implementation 전용이며 public API나 사용자 코드에서 직접 참조하지 않는다.
+
+## 11. Binary utilities
+
+Binary utility는 모두 `cms::util` 아래의 deterministic / zero-heap component다. C++17,
+exception-free, RTTI-free 구성에서 사용할 수 있고 host byte order나 unaligned integer access에
+의존하지 않는다.
+
+### ByteView
+
+Header: `<cms/util/byte_view.h>` · Type: `cms::util::ByteView`
+
+```cpp
+constexpr ByteView() noexcept;
+constexpr ByteView(const std::uint8_t* data, std::size_t size) noexcept;
+template<std::size_t N>
+constexpr ByteView(const std::uint8_t (&data)[N]) noexcept;
+constexpr const std::uint8_t* data() const noexcept;
+constexpr std::size_t size() const noexcept;
+constexpr bool empty() const noexcept;
+constexpr std::uint8_t operator[](std::size_t index) const noexcept;
+constexpr ByteView subview(std::size_t offset, std::size_t count) const noexcept;
+```
+
+Binary storage를 소유하지 않는 read-only view다. Embedded NUL을 일반 byte로 보존하며 caller가
+storage lifetime을 보장한다. `nullptr` 입력은 빈 view로 canonicalize한다. `operator[]`은
+`index < size()`가 precondition이다. `subview()`는 count를 clamp하고 범위를 벗어난 offset에는
+빈 view를 반환한다.
+
+### ByteBuffer와 StaticByteBuffer
+
+Headers: `<cms/util/byte_buffer.h>`, `<cms/util/static_byte_buffer.h>`
+
+```cpp
+ByteBuffer(std::uint8_t* data, std::size_t capacity,
+           std::size_t& size) noexcept;
+std::uint8_t* data() noexcept;
+const std::uint8_t* data() const noexcept;
+std::size_t size() const noexcept;
+std::size_t capacity() const noexcept;
+std::size_t remaining() const noexcept;
+bool empty() const noexcept;
+bool valid() const noexcept;
+ByteView view() const noexcept;
+Status clear() noexcept;
+Status commit(std::size_t newSize) noexcept;
+
+template<std::size_t Capacity> class StaticByteBuffer;
+```
+
+`ByteBuffer`는 caller-owned storage와 size state를 alias한다. `size <= capacity`여야 하고 non-zero
+capacity에는 non-null storage가 필요하다. Zero-capacity buffer는 null storage를 허용한다.
+`commit()` 실패는 size를 유지하지만 caller가 raw `data()`로 수행한 변경을 rollback하지 않는다.
+
+`StaticByteBuffer<Capacity>`는 `Capacity > 0`인 storage를 값으로 소유하고 전체 capacity를 binary
+payload에 사용할 수 있다. `buffer()` alias와 `view()`는 owning object보다 오래 사용할 수 없다.
+
+### BinaryReader
+
+Header: `<cms/util/binary_reader.h>`
+
+```cpp
+explicit BinaryReader(ByteView input) noexcept;
+std::size_t position() const noexcept;
+std::size_t remaining() const noexcept;
+bool empty() const noexcept;
+Status readUint8(std::uint8_t& value) noexcept;
+Status readUint16BigEndian(std::uint16_t& value) noexcept;
+Status readUint32BigEndian(std::uint32_t& value) noexcept;
+Status readUint64BigEndian(std::uint64_t& value) noexcept;
+Status readBytes(std::size_t count, ByteView& value) noexcept;
+Status skip(std::size_t count) noexcept;
+```
+
+Input 부족은 `Status::out_of_range`다. 실패한 operation은 cursor와 output argument를 변경하지
+않는다. Multi-byte integer는 byte 단위로 조합하므로 input alignment와 host endian에 독립적이다.
+`readBytes()` 결과는 reader input storage를 alias한다.
+
+### BinaryWriter
+
+Header: `<cms/util/binary_writer.h>`
+
+```cpp
+explicit BinaryWriter(ByteBuffer output) noexcept;
+std::size_t position() const noexcept;
+std::size_t remaining() const noexcept;
+bool valid() const noexcept;
+Status writeUint8(std::uint8_t value) noexcept;
+Status writeUint16BigEndian(std::uint16_t value) noexcept;
+Status writeUint32BigEndian(std::uint32_t value) noexcept;
+Status writeUint64BigEndian(std::uint64_t value) noexcept;
+Status writeBytes(ByteView value) noexcept;
+```
+
+Writer는 기존 buffer 끝에 이어 쓴다. 성공한 operation만 shared size와 position을 전진시킨다.
+공간 부족은 `Status::no_space`, invalid buffer는 `Status::invalid_argument`이며 실패 시 destination
+content와 size를 변경하지 않는다. `writeBytes()`는 source/destination overlap을 지원한다.
+
+### CRC-32/ISO-HDLC
+
+Header: `<cms/util/crc32.h>` · Namespace: `cms::util::crc32`
+
+```cpp
+class IsoHdlc {
+public:
+    IsoHdlc() noexcept;
+    void reset() noexcept;
+    void update(ByteView data) noexcept;
+    std::uint32_t value() const noexcept;
+};
+
+std::uint32_t isoHdlc(ByteView data) noexcept;
+```
+
+Parameter는 polynomial `0x04C11DB7`, reflected polynomial `0xEDB88320`, init/xorout
+`0xFFFFFFFF`, refin/refout `true`다. ASCII `123456789`의 check value는 `0xCBF43926`이다.
+`IsoHdlc`는 chunk 순서대로 incremental 계산하며 `value()`는 state를 변경하지 않는다.
+
+TLV, frame header, message identifier, session, ACK/retry와 transport adaptation은 binary utility의
+public contract에 포함되지 않는다.
