@@ -205,6 +205,75 @@ int main() {
         cms::util::StringView(embeddedHaystack, sizeof(embeddedHaystack)),
         cms::util::StringView(embeddedSuffix, sizeof(embeddedSuffix))) == 3);
 
+    checkBytes(cms::util::string::trimAsciiWhitespace(empty), nullptr, 0);
+    checkBytes(cms::util::string::trimAsciiWhitespace(" \t\n\v\f\r"), nullptr, 0);
+    checkBytes(cms::util::string::trimAsciiWhitespace("  abc"), "abc", 3);
+    checkBytes(cms::util::string::trimAsciiWhitespace("abc\r\n"), "abc", 3);
+    checkBytes(cms::util::string::trimAsciiWhitespace("\tabc "), "abc", 3);
+    const char nonAsciiTrim[] = {byte(0xC2), byte(0xA0), 'A', byte(0xC2), byte(0xA0)};
+    checkBytes(
+        cms::util::string::trimAsciiWhitespace(
+            cms::util::StringView(nonAsciiTrim, sizeof(nonAsciiTrim))),
+        nonAsciiTrim,
+        sizeof(nonAsciiTrim));
+    const char nulTrim[] = {' ', '\0', 'A', ' '};
+    const char nulTrimExpected[] = {'\0', 'A'};
+    checkBytes(
+        cms::util::string::trimAsciiWhitespace(
+            cms::util::StringView(nulTrim, sizeof(nulTrim))),
+        nulTrimExpected,
+        sizeof(nulTrimExpected));
+
+    CMS_TEST_CHECK(cms::util::string::compareIgnoreAsciiCase("AbC", "aBc") == 0);
+    CMS_TEST_CHECK(cms::util::string::compareIgnoreAsciiCase("abc", "ABD") == -1);
+    CMS_TEST_CHECK(cms::util::string::equalsIgnoreAsciiCase("AbC", "aBc"));
+    CMS_TEST_CHECK(!cms::util::string::equalsIgnoreAsciiCase("Ab", "abc"));
+    CMS_TEST_CHECK(cms::util::string::startsWithIgnoreAsciiCase("AbCd", "aBc"));
+    CMS_TEST_CHECK(cms::util::string::endsWithIgnoreAsciiCase("AbCd", "BcD"));
+    CMS_TEST_CHECK(cms::util::string::findIgnoreAsciiCase("aBcAbC", "BC") == 1);
+    CMS_TEST_CHECK(cms::util::string::findIgnoreAsciiCase("aBcAbC", "aB", 1) == 3);
+    CMS_TEST_CHECK(cms::util::string::findIgnoreAsciiCase("abc", empty, 2) == 2);
+    CMS_TEST_CHECK(cms::util::string::findIgnoreAsciiCase(
+        "abc", "a", cms::util::string::npos) == cms::util::string::npos);
+    CMS_TEST_CHECK(cms::util::string::findLastIgnoreAsciiCase("aBcAbC", "AB") == 3);
+    CMS_TEST_CHECK(cms::util::string::findLastIgnoreAsciiCase("abc", empty) == 3);
+    const char nonAsciiUpper[] = {byte(0xC0)};
+    const char nonAsciiLower[] = {byte(0xE0)};
+    CMS_TEST_CHECK(!cms::util::string::equalsIgnoreAsciiCase(
+        cms::util::StringView(nonAsciiUpper, 1),
+        cms::util::StringView(nonAsciiLower, 1)));
+
+    cms::util::StringView normalTokens[4];
+    CMS_TEST_CHECK(cms::util::string::split("a:b:c", ':', normalTokens) == 3);
+    checkBytes(normalTokens[0], "a", 1);
+    checkBytes(normalTokens[1], "b", 1);
+    checkBytes(normalTokens[2], "c", 1);
+    const char emptyFields[] = ":a::";
+    cms::util::StringView emptyTokens[4];
+    CMS_TEST_CHECK(cms::util::string::split(emptyFields, ':', emptyTokens) == 4);
+    checkBytes(emptyTokens[0], nullptr, 0);
+    checkBytes(emptyTokens[1], "a", 1);
+    checkBytes(emptyTokens[2], nullptr, 0);
+    checkBytes(emptyTokens[3], nullptr, 0);
+    CMS_TEST_CHECK(emptyTokens[1].data() == emptyFields + 1);
+    cms::util::StringView oneToken[1];
+    CMS_TEST_CHECK(cms::util::string::split("a:b", ':', oneToken) == 1);
+    checkBytes(oneToken[0], "a:b", 3);
+    cms::util::StringView remainderTokens[2];
+    CMS_TEST_CHECK(cms::util::string::split(
+        "a:b:c:d", ':', remainderTokens) == 2);
+    checkBytes(remainderTokens[0], "a", 1);
+    checkBytes(remainderTokens[1], "b:c:d", 5);
+    const char nulSplit[] = {'A', '\0', ':', 'B'};
+    const char nulFirst[] = {'A', '\0'};
+    cms::util::StringView nulTokens[2];
+    CMS_TEST_CHECK(cms::util::string::split(
+        cms::util::StringView(nulSplit, sizeof(nulSplit)),
+        ':',
+        nulTokens) == 2);
+    checkBytes(nulTokens[0], nulFirst, sizeof(nulFirst));
+    checkBytes(nulTokens[1], "B", 1);
+
     char copyStorage[8] = "old";
     std::size_t copySize = 3;
     cms::util::StringBuffer copyOutput(copyStorage, sizeof(copyStorage), copySize);

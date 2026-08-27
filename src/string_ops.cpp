@@ -13,12 +13,37 @@ unsigned char byteAt(StringView value, std::size_t index) noexcept {
     return static_cast<unsigned char>(value[index]);
 }
 
+unsigned char foldAsciiCase(unsigned char value) noexcept {
+    return value >= static_cast<unsigned char>('A')
+            && value <= static_cast<unsigned char>('Z')
+        ? static_cast<unsigned char>(value + ('a' - 'A'))
+        : value;
+}
+
+bool isAsciiWhitespace(char value) noexcept {
+    return value == ' ' || value == '\t' || value == '\n'
+        || value == '\v' || value == '\f' || value == '\r';
+}
+
 bool bytesEqual(
     StringView lhs,
     std::size_t lhsOffset,
     StringView rhs) noexcept {
     for (std::size_t index = 0; index < rhs.size(); ++index) {
         if (lhs[lhsOffset + index] != rhs[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool bytesEqualIgnoreAsciiCase(
+    StringView lhs,
+    std::size_t lhsOffset,
+    StringView rhs) noexcept {
+    for (std::size_t index = 0; index < rhs.size(); ++index) {
+        if (foldAsciiCase(byteAt(lhs, lhsOffset + index))
+            != foldAsciiCase(byteAt(rhs, index))) {
             return false;
         }
     }
@@ -88,6 +113,57 @@ bool endsWith(StringView value, StringView suffix) noexcept {
         && bytesEqual(value, value.size() - suffix.size(), suffix);
 }
 
+StringView trimAsciiWhitespace(StringView value) noexcept {
+    std::size_t begin = 0;
+    while (begin < value.size() && isAsciiWhitespace(value[begin])) {
+        ++begin;
+    }
+
+    std::size_t end = value.size();
+    while (end > begin && isAsciiWhitespace(value[end - 1])) {
+        --end;
+    }
+    return value.substr(begin, end - begin);
+}
+
+int compareIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept {
+    const std::size_t sharedSize =
+        lhs.size() < rhs.size() ? lhs.size() : rhs.size();
+    for (std::size_t index = 0; index < sharedSize; ++index) {
+        const unsigned char left = foldAsciiCase(byteAt(lhs, index));
+        const unsigned char right = foldAsciiCase(byteAt(rhs, index));
+        if (left < right) {
+            return -1;
+        }
+        if (left > right) {
+            return 1;
+        }
+    }
+    return lhs.size() < rhs.size() ? -1 : lhs.size() > rhs.size() ? 1 : 0;
+}
+
+bool equalsIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept {
+    return lhs.size() == rhs.size()
+        && bytesEqualIgnoreAsciiCase(lhs, 0, rhs);
+}
+
+bool startsWithIgnoreAsciiCase(
+    StringView value,
+    StringView prefix) noexcept {
+    return prefix.size() <= value.size()
+        && bytesEqualIgnoreAsciiCase(value, 0, prefix);
+}
+
+bool endsWithIgnoreAsciiCase(
+    StringView value,
+    StringView suffix) noexcept {
+    return suffix.size() <= value.size()
+        && bytesEqualIgnoreAsciiCase(
+            value,
+            value.size() - suffix.size(),
+            suffix);
+}
+
 std::size_t find(
     StringView value,
     StringView needle,
@@ -137,6 +213,92 @@ std::size_t findLast(StringView value, StringView needle) noexcept {
     }
     return npos;
 }
+
+std::size_t findIgnoreAsciiCase(
+    StringView value,
+    StringView needle,
+    std::size_t start) noexcept {
+    if (start > value.size()) {
+        return npos;
+    }
+    if (needle.empty()) {
+        return start;
+    }
+    if (needle.size() > value.size() - start) {
+        return npos;
+    }
+
+    const std::size_t lastStart = value.size() - needle.size();
+    std::size_t position = start;
+    while (true) {
+        if (bytesEqualIgnoreAsciiCase(value, position, needle)) {
+            return position;
+        }
+        if (position == lastStart) {
+            break;
+        }
+        ++position;
+    }
+    return npos;
+}
+
+std::size_t findLastIgnoreAsciiCase(
+    StringView value,
+    StringView needle) noexcept {
+    if (needle.empty()) {
+        return value.size();
+    }
+    if (needle.size() > value.size()) {
+        return npos;
+    }
+
+    std::size_t position = value.size() - needle.size();
+    while (true) {
+        if (bytesEqualIgnoreAsciiCase(value, position, needle)) {
+            return position;
+        }
+        if (position == 0) {
+            break;
+        }
+        --position;
+    }
+    return npos;
+}
+
+namespace detail {
+
+std::size_t split(
+    StringView input,
+    char delimiter,
+    StringView* tokens,
+    std::size_t tokenCapacity) noexcept {
+    if (tokens == nullptr || tokenCapacity == 0) {
+        return 0;
+    }
+
+    std::size_t tokenCount = 0;
+    std::size_t tokenStart = 0;
+    while (tokenCount + 1 < tokenCapacity) {
+        std::size_t delimiterPosition = tokenStart;
+        while (delimiterPosition < input.size()
+            && input[delimiterPosition] != delimiter) {
+            ++delimiterPosition;
+        }
+        if (delimiterPosition == input.size()) {
+            break;
+        }
+
+        tokens[tokenCount] =
+            input.substr(tokenStart, delimiterPosition - tokenStart);
+        ++tokenCount;
+        tokenStart = delimiterPosition + 1;
+    }
+
+    tokens[tokenCount] = input.substr(tokenStart, input.size() - tokenStart);
+    return tokenCount + 1;
+}
+
+} // namespace detail
 
 WriteResult copy(StringView input, StringBuffer output) noexcept {
     if (!output.valid()) {

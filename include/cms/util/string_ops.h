@@ -19,6 +19,15 @@ bool equals(StringView lhs, StringView rhs) noexcept;
 bool startsWith(StringView value, StringView prefix) noexcept;
 bool endsWith(StringView value, StringView suffix) noexcept;
 
+// ASCII whitespace만 양끝에서 제거하고 원본 storage를 가리키는 view를 반환한다.
+StringView trimAsciiWhitespace(StringView value) noexcept;
+
+// ASCII 영문자만 case-fold하고 그 외 byte는 그대로 비교한다.
+int compareIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept;
+bool equalsIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept;
+bool startsWithIgnoreAsciiCase(StringView value, StringView prefix) noexcept;
+bool endsWithIgnoreAsciiCase(StringView value, StringView suffix) noexcept;
+
 // find의 start는 byte index다. 빈 needle은 유효한 start를 그대로 반환하며,
 // 찾지 못했거나 start가 범위를 벗어나면 npos를 반환한다.
 std::size_t find(
@@ -28,6 +37,33 @@ std::size_t find(
 
 // 마지막 byte match를 찾는다. 빈 needle은 value.size()에서 일치한다.
 std::size_t findLast(StringView value, StringView needle) noexcept;
+
+std::size_t findIgnoreAsciiCase(
+    StringView value,
+    StringView needle,
+    std::size_t start = 0) noexcept;
+std::size_t findLastIgnoreAsciiCase(
+    StringView value,
+    StringView needle) noexcept;
+
+namespace detail {
+
+std::size_t split(
+    StringView input,
+    char delimiter,
+    StringView* tokens,
+    std::size_t tokenCapacity) noexcept;
+
+} // namespace detail
+
+// 빈 field를 보존하며 마지막 slot에는 아직 나누지 않은 remainder를 담는다.
+template<std::size_t N>
+std::size_t split(
+    StringView input,
+    char delimiter,
+    StringView (&tokens)[N]) noexcept {
+    return detail::split(input, delimiter, tokens, N);
+}
 
 // 네 byte-copy 연산은 input과 output storage가 겹치는 경우도 지원한다.
 // copy와 append는 transactional이고, Truncated variant만 부분 기록을 허용한다.
