@@ -64,6 +64,8 @@ V2 sink contract는 `Status write(StringView)`다. `drainOne()`은 sink Status�
 
 `cms::util::platform::StdFileSink`는 host stdio file handle을 소유하며 binary append/truncate, embedded NUL을 포함한 exact byte write, explicit flush/close를 제공한다. write 성공은 stdio stream acceptance이며 durable storage를 뜻하지 않는다. `cms::util::log::TeeSink<A, B>`는 Status 실패에도 두 sink를 호출하고 첫 non-ok Status를 반환한다. 이미 성공한 output은 rollback되지 않으며 resource contract는 contained sink의 합이다.
 
+`cms::util::platform::ArduinoUdpSink`는 application이 초기화하고 lifetime을 관리하는 WiFiUDP-like 객체를 non-owning으로 사용한다. Formatted log line 하나를 UDP packet 하나로 전송하고 실패는 `Status::io_error`로 반환하며 `TeeSink`와 조합할 수 있다.
+
 Thin Template 패턴이 적용된 고성능 비동기 로거입니다.
 
 ### 설정 및 제어

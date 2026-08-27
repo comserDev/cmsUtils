@@ -5,7 +5,9 @@
 
 #include <cms/util/platform/arduino_millis_clock.h>
 #include <cms/util/platform/arduino_serial_sink.h>
+#include <cms/util/platform/arduino_udp_sink.h>
 #include <cms/util/platform/freertos_static_mutex.h>
+#include <cms/util/log/tee_sink.h>
 #include <cms/util/static_queue.h>
 #include <cms/util/sync/synchronized_queue.h>
 
@@ -33,6 +35,44 @@ struct FakeSerial {
     bool shortWrite = false;
 };
 
+struct FakeAddress {
+    std::uint32_t value = 0;
+};
+
+struct FakeUdp {
+    int beginPacket(FakeAddress address, std::uint16_t port) noexcept {
+        ++beginCalls;
+        receivedAddress = address;
+        receivedPort = port;
+        return beginSucceeds ? 1 : 0;
+    }
+
+    std::size_t write(const std::uint8_t* data, std::size_t size) noexcept {
+        ++writeCalls;
+        receivedSize = size;
+        for (std::size_t index = 0; index < size && index < 16; ++index) {
+            bytes[index] = data[index];
+        }
+        return shortWrite ? size - 1 : size;
+    }
+
+    int endPacket() noexcept {
+        ++endCalls;
+        return endSucceeds ? 1 : 0;
+    }
+
+    std::uint8_t bytes[16] = {};
+    FakeAddress receivedAddress;
+    std::uint16_t receivedPort = 0;
+    std::size_t receivedSize = 0;
+    std::size_t beginCalls = 0;
+    std::size_t writeCalls = 0;
+    std::size_t endCalls = 0;
+    bool beginSucceeds = true;
+    bool shortWrite = false;
+    bool endSucceeds = true;
+};
+
 } // namespace
 
 int main() {
@@ -53,6 +93,64 @@ int main() {
     serial.shortWrite = true;
     CMS_TEST_CHECK(serialSink.write("x") == cms::util::Status::io_error);
     CMS_TEST_CHECK(serial.calls == 2);
+
+    const FakeAddress remoteAddress{0xC0A80101U};
+    constexpr std::uint16_t remotePort = 5514;
+    FakeUdp udp;
+    cms::util::platform::ArduinoUdpSink<FakeUdp, FakeAddress> udpSink(
+        udp,
+        remoteAddress,
+        remotePort);
+    CMS_TEST_CHECK(udpSink.write(cms::util::StringView())
+        == cms::util::Status::ok);
+    CMS_TEST_CHECK(udp.beginCalls == 0);
+    CMS_TEST_CHECK(udp.writeCalls == 0);
+    CMS_TEST_CHECK(udp.endCalls == 0);
+
+    udp.beginSucceeds = false;
+    CMS_TEST_CHECK(udpSink.write("begin") == cms::util::Status::io_error);
+    CMS_TEST_CHECK(udp.beginCalls == 1);
+    CMS_TEST_CHECK(udp.writeCalls == 0);
+    CMS_TEST_CHECK(udp.endCalls == 0);
+
+    udp.beginSucceeds = true;
+    CMS_TEST_CHECK(udpSink.write(
+        cms::util::StringView(payload, sizeof(payload)))
+        == cms::util::Status::ok);
+    CMS_TEST_CHECK(udp.beginCalls == 2);
+    CMS_TEST_CHECK(udp.writeCalls == 1);
+    CMS_TEST_CHECK(udp.endCalls == 1);
+    CMS_TEST_CHECK(udp.receivedAddress.value == remoteAddress.value);
+    CMS_TEST_CHECK(udp.receivedPort == remotePort);
+    CMS_TEST_CHECK(udp.receivedSize == sizeof(payload));
+    CMS_TEST_CHECK(udp.bytes[0] == 'A');
+    CMS_TEST_CHECK(udp.bytes[1] == 0);
+    CMS_TEST_CHECK(udp.bytes[2] == 'B');
+
+    udp.shortWrite = true;
+    CMS_TEST_CHECK(udpSink.write("short") == cms::util::Status::io_error);
+    CMS_TEST_CHECK(udp.writeCalls == 2);
+    CMS_TEST_CHECK(udp.endCalls == 2);
+
+    udp.shortWrite = false;
+    udp.endSucceeds = false;
+    CMS_TEST_CHECK(udpSink.write("end") == cms::util::Status::io_error);
+    CMS_TEST_CHECK(udp.writeCalls == 3);
+    CMS_TEST_CHECK(udp.endCalls == 3);
+
+    FakeSerial teeSerial;
+    FakeUdp teeUdp;
+    using SerialSink = cms::util::platform::ArduinoSerialSink<FakeSerial>;
+    using UdpSink =
+        cms::util::platform::ArduinoUdpSink<FakeUdp, FakeAddress>;
+    cms::util::log::TeeSink<SerialSink, UdpSink> tee{
+        SerialSink(teeSerial),
+        UdpSink(teeUdp, remoteAddress, remotePort)};
+    CMS_TEST_CHECK(tee.write("tee") == cms::util::Status::ok);
+    CMS_TEST_CHECK(teeSerial.calls == 1);
+    CMS_TEST_CHECK(teeUdp.beginCalls == 1);
+    CMS_TEST_CHECK(teeUdp.writeCalls == 1);
+    CMS_TEST_CHECK(teeUdp.endCalls == 1);
 
     cms::util::platform::ArduinoMillisClock millisClock;
     cms_test_arduino::setMillis(0);

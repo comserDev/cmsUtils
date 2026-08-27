@@ -83,6 +83,8 @@ if (queue.pop(val)) {
 
 V2 sink는 `Status write(StringView)` contract를 사용한다. `drainOne()`은 formatter 성공 후 sink가 반환한 Status를 그대로 전달하며, 실패한 record도 이미 queue에서 제거되어 자동 retry/requeue되지 않는다. Host file output은 `StdFileSink`, 두 destination fan-out은 allocation 없는 `TeeSink<A, B>`를 opt-in으로 사용할 수 있다.
 
+`ArduinoUdpSink`는 application이 초기화하고 lifetime을 관리하는 WiFiUDP-like 객체를 non-owning으로 사용하며, formatted log line 하나를 UDP packet 하나로 전송한다. 전송 실패는 `Status::io_error`로 보고하고 `TeeSink`와 조합할 수 있다.
+
 ```cpp
 #include <cmsAsyncLogger.h>
 

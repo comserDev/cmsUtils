@@ -612,6 +612,19 @@ target_compile_features(
     cms_arduino_serial_sink_header_compile PRIVATE cxx_std_17)
 cms_configure_target(cms_arduino_serial_sink_header_compile)
 
+add_library(cms_arduino_udp_sink_header_compile OBJECT
+    compile/test_arduino_udp_sink_header.cpp
+)
+
+target_include_directories(cms_arduino_udp_sink_header_compile
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_features(
+    cms_arduino_udp_sink_header_compile PRIVATE cxx_std_17)
+cms_configure_target(cms_arduino_udp_sink_header_compile)
+
 add_library(cms_arduino_millis_clock_header_compile OBJECT
     compile/test_arduino_millis_clock_header.cpp
 )
