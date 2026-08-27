@@ -1153,3 +1153,11 @@ target_include_directories(cms_std_file_sink_tests PRIVATE support)
 target_compile_features(cms_std_file_sink_tests PRIVATE cxx_std_17)
 cms_configure_target(cms_std_file_sink_tests)
 add_test(NAME cms.std_file_sink COMMAND cms_std_file_sink_tests)
+
+add_executable(cms_native_example
+    ${PROJECT_SOURCE_DIR}/examples/main.cpp
+)
+
+target_link_libraries(cms_native_example PRIVATE cms_utils)
+target_compile_features(cms_native_example PRIVATE cxx_std_17)
+cms_configure_target(cms_native_example)

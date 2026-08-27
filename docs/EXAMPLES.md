@@ -1,358 +1,288 @@
-# cmsUtils Examples
+# cmsUtils V2 예제
 
-이 문서는 `cmsUtils` 라이브러리를 실무에서 극한까지 활용하는 다양한 시나리오별 예제 코드 모음입니다. 모든 예제는 **Zero-Heap(동적 할당 미사용)** 원칙을 준수합니다.
+cmsUtils는 component마다 resource profile이 다르다.
 
----
+- `StaticString`과 `StaticQueue`는 fixed storage를 사용하는 deterministic component다.
+- fixed-capacity `AsyncLogger`의 queue와 message storage도 고정 용량이며 cmsUtils가 제어하는
+  heap allocation을 사용하지 않는다. 다만 완성된 Logger의 전체 resource contract는 선택한
+  `Clock`, `Sink`, `Mutex`, `Formatter`에도 의존한다. `StdMutex`, `StdFileSink` 같은 host adapter를
+  조합한 구성을 strict embedded/deterministic profile이라고 일반화하지 않는다.
+- Arduino, FreeRTOS, stdout 같은 기능은 platform adapter로 분리된다.
+- `StdQueueAsyncLogger`는 내부 `std::queue`에서 dynamic allocation이 발생할 수 있다.
+- `logf`는 libc `snprintf`를 사용하는 opt-in helper다.
 
-## 1. 문자열 조작 및 포맷팅 (String & Formatting)
+Library 전체나 모든 사용 환경이 항상 zero-heap이라고 가정하면 안 된다. 선택한 component의
+resource contract를 기준으로 판단한다.
 
-### 1.1 복합 포맷팅 및 체이닝 (Chaining)
-`printf` 스타일과 C++ 스트림 스타일을 자유롭게 혼합하여 사용할 수 있습니다.
+## 1. StaticString과 명시적 오류 처리
+
+`StorageBytes`에는 terminating NUL이 포함된다. 기본 쓰기 API는 공간 부족 시 destination을
+바꾸지 않는 transactional operation이다.
+
 ```cpp
-#include <cmsString.h>
+#include <cms/util/static_string.h>
 
-void statusReport() {
-    cms::String<128> s;
-    int battery = 85;
-    float voltage = 4.12f;
-
-    // printf로 시작하여 스트림으로 결합
-    s.printf("BAT: %d%% (%.2fV)", battery, voltage) << " | Mode: " << "POWER_SAVE";
-
-    // 결과: "BAT: 85% (4.12V) | Mode: POWER_SAVE"
-}
-```
-
-### 1.2 UTF-8 안전한 한글 조작
-바이트 단위가 아닌 논리적 글자 단위로 동작하여 한글 깨짐을 방지합니다.
-```cpp
-void processKorean() {
-    cms::String<64> msg = "알림: [화재] 감지됨";
-    cms::String<32> tag;
-
-    // "화재" 부분만 추출 (글자 인덱스 5번부터 2글자)
-    msg.substring(tag, 5, 7);
-
-    if (tag == "화재") {
-        msg.replace("감지됨", "발생!!!"); // "알림: [화재] 발생!!!"
+cms::util::StaticString<32> message;
+const auto assigned = message.assign("temperature=");
+if (assigned.status == cms::util::Status::ok) {
+    const auto appended = message.append("25.0");
+    if (appended.status == cms::util::Status::ok) {
+        sendToCapi(message.cStr());
     }
 }
 ```
 
----
+일부 기록이 필요한 경우에만 `assignTruncated()` 또는 `appendTruncated()`를 명시적으로
+선택한다.
 
-## 2. 프로토콜 파싱 및 토큰화 (Parsing & Tokenize)
+## 2. StringView split과 parse
 
-### 2.1 `splitTo`를 이용한 즉시 배열 변환 (권장)
-가장 깔끔하고 안전하게 문자열을 분리하여 고정 크기 배열에 담습니다.
+Split 결과는 원본 storage를 가리키는 non-owning view다. Parser는 numeric prefix를 허용하므로
+전체 token validation에는 `consumed` 길이도 확인한다.
+
 ```cpp
-void parseConfig(const char* line) {
-    cms::String<64> src = line; // 예: "SSID:MyHome:WPA2"
-    cms::String<32> params[3];
+#include <cms/util/parse.h>
+#include <cms/util/string_ops.h>
 
-    // ':' 기준으로 분리하여 params 배열에 순서대로 복사
-    size_t count = cms::splitTo(src, ':', params);
+cms::util::StringView tokens[2];
+const cms::util::StringView input("port:8080");
+const std::size_t count = cms::util::string::split(input, ':', tokens);
 
-    if (count == 3) {
-        // params[0]: "SSID", params[1]: "MyHome", params[2]: "WPA2"
+if (count == 2) {
+    const auto port = cms::util::parse::unsignedInteger(tokens[1]);
+    if (port.status == cms::util::Status::ok
+        && port.consumed == tokens[1].size()) {
+        usePort(port.value);
     }
 }
 ```
 
-### 2.2 `Token`을 이용한 비파괴적 파싱
-원본 문자열을 수정하지 않고 포인터와 길이 정보만으로 빠르게 파싱합니다.
-```cpp
-void onDataReceived(const char* raw) {
-    cms::String<64> data = raw;
-    cms::string::Token tokens[3];
+## 3. UTF-8 validate, count, substring
 
-    // "CMD:SET_TEMP:24.5" 분리
-    if (data.split(':', tokens, 3) == 3) {
-        if (tokens[0] == "CMD" && tokens[1] == "SET_TEMP") {
-            float temp = tokens[2].toFloat();
-        }
+`StringView` 자체는 valid UTF-8을 보장하지 않는다. UTF-8 알고리즘의 index는 grapheme cluster가
+아닌 Unicode code point 기준이다.
+
+```cpp
+#include <cms/util/static_string.h>
+#include <cms/util/utf8.h>
+
+const cms::util::StringView input(u8"온도: 25도");
+if (cms::util::utf8::validate(input) == cms::util::Status::ok) {
+    const auto count = cms::util::utf8::count(input);
+
+    cms::util::StaticString<16> prefix;
+    const auto copied = cms::util::utf8::substring(input, 0, 2, prefix.buffer());
+    if (count.status == cms::util::Status::ok
+        && copied.status == cms::util::Status::ok) {
+        consume(prefix.view());
     }
 }
 ```
 
-### 2.3 `copyTokens`를 이용한 단계별 복사
-먼저 토큰으로 분석한 뒤, 필요한 부분만 문자열 객체로 복사할 때 유용합니다.
-```cpp
-void processLog(const char* raw) {
-    cms::string::Token tokens[5];
-    size_t n = cms::string::split(raw, ',', tokens, 5);
+## 4. StaticQueue와 overwrite policy
 
-    if (n > 2) {
-        cms::String<16> category;
-        // 특정 토큰만 실제 String 객체로 안전하게 복사
-        category.append(tokens[1].ptr, tokens[1].len);
-    }
+`push()`는 full일 때 `Status::no_space`를 반환한다. Oldest 교체가 필요한 지점만
+`pushOverwrite()`를 사용한다.
+
+```cpp
+#include <cms/util/static_queue.h>
+
+cms::util::StaticQueue<int, 2> queue;
+queue.push(10);
+queue.push(20);
+
+if (queue.push(30) == cms::util::Status::no_space) {
+    queue.pushOverwrite(30);
+}
+
+if (const int* value = queue.front()) {
+    consume(*value);
+    queue.pop();
 }
 ```
 
----
+## 5. SynchronizedQueue
 
-## 3. 큐 활용 (Queue & ThreadSafeQueue)
+`SynchronizedQueue`는 queue와 mutex를 값으로 소유한다. `front()` pointer를 lock 밖으로
+노출하지 않으며 `consumeFront()` callback이 실행되는 동안 lock을 유지한다.
 
-### 3.1 기본 큐를 이용한 상태 머신 (Single-task)
-뮤텍스 오버헤드가 없어 단일 루프나 인터럽트가 없는 환경에서 매우 빠릅니다.
 ```cpp
-#include <cmsQueue.h>
+#include <cms/util/platform/std_mutex.h>
+#include <cms/util/static_queue.h>
+#include <cms/util/sync/synchronized_queue.h>
 
-cms::Queue<char, 10> cmdQueue;
+using Queue = cms::util::StaticQueue<int, 8>;
+cms::util::sync::SynchronizedQueue<
+    Queue,
+    cms::util::platform::StdMutex> queue;
 
-void loop() {
-    char cmd;
-    if (cmdQueue.pop(cmd)) {
-        switch(cmd) {
-            case 'R': resetSystem(); break;
-            case 'S': startSystem(); break;
-        }
-    }
+queue.push(42);
+queue.consumeFront([](const int& value) {
+    consume(value);
+});
+```
+
+`StdMutex`의 내부 resource 특성은 standard library implementation을 따른다. 동기화가 필요 없는
+single-thread 구성에는 `sync::NullMutex`를 선택할 수 있다.
+
+## 6. AsyncLogger와 StdoutSink
+
+Fixed-capacity `AsyncLogger`는 queue, clock, formatter, sink를 compile time에 조합한다. Logger는
+singleton이 아니며 application이 lifetime을 소유한다.
+
+```cpp
+#include <cms/util/log/async_logger.h>
+#include <cms/util/platform/stdout_sink.h>
+#include <cms/util/platform/system_clock.h>
+#include <cms/util/sync/null_mutex.h>
+
+using Logger = cms::util::log::AsyncLogger<
+    96,
+    8,
+    cms::util::platform::SystemClock,
+    cms::util::platform::StdoutSink,
+    cms::util::sync::NullMutex>;
+
+Logger logger{
+    cms::util::platform::SystemClock{},
+    cms::util::platform::StdoutSink{}};
+
+if (logger.log(cms::util::log::Level::info, "ready")
+    == cms::util::Status::ok) {
+    const cms::util::Status output = logger.drainOne();
+    // output 상태 확인
 }
 ```
 
-### 3.2 스레드 안전 큐를 이용한 태스크 간 통신 (Multi-task)
+`drainOne()`은 record를 dequeue한 뒤 sink를 호출한다. Output 실패 시 자동 retry나 requeue는
+없다.
+
+## 7. logf opt-in convenience
+
+`logf`는 libc `snprintf` semantics를 쓰는 producer-side helper다. Strict deterministic typed
+formatter와 같은 resource contract가 아니다.
+
 ```cpp
-#include <cmsQueue.h>
+#include <cms/util/log/printf_log.h>
 
-cms::ThreadSafeQueue<float, 20> sensorData;
-
-// Task 1 (Core 0): 센서 읽기
-void sensorTask(void* p) {
-    while(1) {
-        sensorData.enqueue(readADC());
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
-
-// Task 2 (Core 1): 데이터 분석
-void analysisTask(void* p) {
-    while(1) {
-        float val;
-        if (sensorData.pop(val)) {
-            // 분석 로직 수행
-        }
-    }
-}
+const cms::util::Status status = cms::util::log::logf(
+    logger,
+    cms::util::log::Level::info,
+    "sensor=%u",
+    7U);
 ```
 
-### 3.3 ADC 샘플링용 이동 평균 필터 (Moving Average)
-```cpp
-cms::Queue<uint16_t, 10> samples;
+결과가 message capacity에 들어가지 않으면 enqueue하지 않고 `Status::no_space`를 반환한다.
 
-uint32_t getAverage() {
-    uint32_t sum = 0;
-    uint16_t val;
-    for (uint8_t i = 0; i < samples.size(); ++i) {
-        samples.getAt(i, val); // 큐를 비우지 않고 조회
-        sum += val;
-    }
-    return samples.isEmpty() ? 0 : (sum / samples.size());
-}
+## 8. Runtime level과 ANSI
+
+Runtime level filter는 enqueue 시점에 적용되고, runtime ANSI mode는 drain/format 시점에
+적용된다. 필요한 policy를 logger template argument로 선택한다.
+
+```cpp
+#include <cms/util/log/level_filter.h>
+#include <cms/util/log/runtime_ansi_formatter.h>
+
+using Filter = cms::util::log::RuntimeLevelFilter;
+using Formatter = cms::util::log::RuntimeAnsiFormatter;
+
+using RuntimeLogger = cms::util::log::AsyncLogger<
+    96,
+    8,
+    Clock,
+    Sink,
+    Mutex,
+    Formatter,
+    Filter>;
+
+RuntimeLogger logger{Clock{}, Sink{}};
+logger.setMinLevel(cms::util::log::Level::warning);
+logger.setUseColor(true);
 ```
 
----
+`Clock`, `Sink`, `Mutex`는 application 환경에 맞는 실제 타입으로 바꾼다. Runtime level filter는
+enqueue 시점에 적용되므로 `setMinLevel()` 또는 `setLoggingEnabled()`와 `log()`를 동시에 호출할
+때는 caller가 외부 동기화를 제공해야 한다. ANSI mode는 format/drain 시점에 적용되므로
+`RuntimeAnsiFormatter::setUseColor()`와 `drainOne()`을 동시에 호출할 때도 외부 동기화가 필요하다.
 
-## 4. AsyncLogger 확장 및 커스텀 (Logger)
+## 9. StdFileSink
 
-### 4.1 보안 필터링 및 가로채기 (`handleLog`)
-로그가 큐에 쌓이기 전 보안 정보를 가리거나 특정 조건에서 즉각 대응합니다.
+`StdFileSink`는 `FILE`/stdio resource를 사용하는 host opt-in component다.
+
 ```cpp
-#include <cmsAsyncLogger.h>
+#include <cms/util/platform/std_file_sink.h>
 
-class SecureLogger : public cms::AsyncLogger<256, 16> {
-protected:
-    bool handleLog(const cms::StringBase& msg) override {
-        // 1. 특정 키워드 포함 시 로그 완전 차단 (큐 저장 안함)
-        if (msg.contains("PASSWORD") || msg.contains("AUTH_TOKEN")) {
-            return true;
-        }
-
-        // 2. 특정 조건에서 메시지 변형 후 수동 투입
-        if (msg.contains("RETRY")) {
-            cms::String<128> newMsg = "[AUTO-RECOVERY] ";
-            newMsg << msg;
-            pushToQueue(newMsg); // 가공된 메시지를 큐에 넣음
-            return true; // 원본은 차단
-        }
-        return false; // 나머지는 정상적으로 비동기 처리
-    }
-};
-```
-
-### 4.2 SD 카드 파일 로깅 (`outputLog`)
-시리얼이 아닌 파일 시스템으로 로그 출력 방향을 바꿉니다.
-```cpp
-class FileLogger : public cms::AsyncLogger<256, 32> {
-protected:
-    void outputLog(const cms::StringBase& msg) override {
-        // 시리얼 대신 SD 카드의 파일로 로그 기록
-        myFile.println(msg.c_str());
-        myFile.flush();
-    }
-};
-```
-
-### 4.3 조건부 즉시 출력 (Emergency Bypass)
-에러 로그는 큐를 거치지 않고 즉시 출력하여 지연을 방지합니다.
-```cpp
-class SmartLogger : public cms::AsyncLogger<256, 16> {
-protected:
-    bool handleLog(const cms::StringBase& msg) override {
-        // 에러 로그([E])는 비동기 큐를 거치지 않고 즉시 장치로 출력
-        if (msg.contains("[E]")) {
-            outputLog(msg);
-            return true; // 큐 저장 생략
-        }
-        return false;
-    }
-};
-```
-
-### 4.4 표준 사용법 및 비동기 처리 (Standard Usage)
-가장 일반적인 로거 초기화 및 비동기 출력 처리 흐름입니다. `printf` 형식을 사용하여 동적 데이터를 포함할 수 있습니다.
-```cpp
-void standardLoggingExample() {
-    // 1. 로거 인스턴스 획득 및 설정
-    auto& myLog = cms::AsyncLogger<>::instance();
-    myLog.begin(cms::LogLevel::Debug, true);
-
-    // 2. 다양한 레벨의 로그 출력 (printf 형식 지원)
-    myLog.d("디버그 메시지입니다. (Code: %d)", 101);
-    myLog.i("정보 메시지이며 [%s] 태그를 포함합니다.", "Network");
-    myLog.w("경고! [Sensor] 데이터가 불안정합니다. (현재값: %.2f)", 85.43f);
-    myLog.e("이 로그는 SECRET 정보를 포함하므로 무시됩니다.");
-    myLog.i("시스템 재시도 중... RETRY 명령 확인");
-
-    // 3. 비동기 로거의 핵심: 실제 출력 처리
-    // 로그는 즉시 출력되지 않고 내부 큐에 저장됩니다.
-    // 실제 출력은 CPU 여유가 있을 때(Idle task 등) 아래 함수를 호출하여 수행합니다.
-    std::cout << "\n[Processing Logs...]" << std::endl;
-    while (myLog.update()) {
-        // 큐가 빌 때까지 로그를 하나씩 꺼내 출력합니다.
-        // outputLog를 재정의하여 다른 동작을 할 수 있습니다. TCP로 로그 보내기 등.
-    }
+cms::util::platform::StdFileSink sink;
+if (sink.open("application.log", cms::util::platform::FileOpenMode::append)
+    == cms::util::Status::ok) {
+    const cms::util::Status written = sink.write("line\n");
+    const cms::util::Status closed = sink.close();
 }
 ```
 
----
+Open/write/close 오류를 각각 확인한다.
 
-## 5. 저수준 유틸리티 직접 사용 (`cms::string`)
+## 10. TeeSink
 
-`String` 클래스 인스턴스를 만들 여유조차 없는 극도의 저사양 환경이나 ISR 내부에서 유용합니다.
+`TeeSink`는 두 sink를 값으로 소유한다. `FirstSink`가 non-`ok` `Status`를 반환해도
+`SecondSink` 호출을 시도하며, 둘 다 `Status`를 반환했다면 첫 non-`ok`을 우선 반환한다.
+Exception은 catch하지 않으므로 `FirstSink::write()`가 throw하면 `SecondSink` 호출은 보장되지
+않는다. Partial success가 가능하며 이미 발생한 output은 rollback하지 않는다.
 
-### 5.1 원시 버퍼(char*) 고속 처리
 ```cpp
-#include <cmsStringUtil.h>
+#include <utility>
 
-void onRawData(char* buf) {
-    // 1. 즉시 공백 제거 (In-place)
-    size_t newLen = cms::string::trim(buf);
+#include <cms/util/log/tee_sink.h>
+#include <cms/util/platform/std_file_sink.h>
+#include <cms/util/platform/stdout_sink.h>
 
-    // 2. 16진수 여부 확인 및 변환
-    if (cms::string::isHex(buf)) {
-        int val = cms::string::hexToInt(buf);
-    }
+using Output = cms::util::log::TeeSink<
+    cms::util::platform::StdoutSink,
+    cms::util::platform::StdFileSink>;
 
-    // 3. 대소문자 무시 비교
-    if (cms::string::equals(buf, "START", true)) {
-        // 시스템 시작
-    }
+cms::util::platform::StdFileSink file;
+if (file.open("application.log") == cms::util::Status::ok) {
+    Output output{cms::util::platform::StdoutSink{}, std::move(file)};
+    const cms::util::Status status = output.write("line\n");
 }
 ```
 
-### 5.2 경량 포맷팅 엔진 (`appendPrintf`)
-표준 `vsnprintf`를 쓰기엔 스택이 부족할 때 사용합니다.
-```cpp
-char myBuf[64];
-size_t curLen = 0;
+## 11. Arduino Serial과 UDP
 
-// 가변 인자를 받아 버퍼에 직접 포맷팅
-cms::string::appendPrintf(myBuf, sizeof(myBuf), curLen, "ID:%d, VAL:%.2f", 10, 3.14f);
+`ArduinoUdpSink`는 UDP 객체를 소유하지 않는다. Application이 WiFi 연결, `udp.begin()`, local
+port와 UDP lifetime을 관리한다. Formatted log line 하나가 UDP packet 하나가 된다.
+
+```cpp
+WiFiUDP udp;
+udp.begin(localPort);
+
+using SerialSink = cms::util::platform::ArduinoSerialSink<HardwareSerial>;
+using UdpSink = cms::util::platform::ArduinoUdpSink<WiFiUDP, IPAddress>;
+using Output = cms::util::log::TeeSink<SerialSink, UdpSink>;
+
+Output output{
+    SerialSink{Serial},
+    UdpSink{udp, remoteAddress, remotePort}};
 ```
 
----
+전체 logger wiring은 [`examples/ArduinoUdpLogger/ArduinoUdpLogger.ino`](../examples/ArduinoUdpLogger/ArduinoUdpLogger.ino)를 참고한다.
 
-## 6. 실전 복합 시나리오
+## 12. StdQueueAsyncLogger host opt-in
 
-### 6.1 바이너리 패킷 덤프 도구
+`StdQueueAsyncLogger`는 `std::queue` storage를 명시적으로 선택하는 host convenience다. Dynamic
+allocation이 가능하고 capacity/full/overwrite contract가 없다.
+
 ```cpp
-void dumpPacket(const uint8_t* data, size_t len) {
-    auto& logger = cms::AsyncLogger<>::instance();
-    cms::String<128> hex;
-    hex << "PKT [" << (int)len << " bytes]: ";
+#include <cms/util/log/std_queue_async_logger.h>
 
-    for (size_t i = 0; i < len; ++i) {
-        hex.appendPrintf("%02X ", data[i]);
+using HostLogger = cms::util::log::StdQueueAsyncLogger<
+    128,
+    Clock,
+    Sink,
+    Mutex>;
 
-        // 버퍼가 거의 다 차면 중간에 한 번 출력하고 비움
-        if (hex.utilization() > 90.0f) {
-            logger.i("%s", hex.c_str());
-            hex.clear() << "  > ";
-        }
-    }
-    logger.i("%s", hex.c_str());
-}
+HostLogger logger{Clock{}, Sink{}};
 ```
 
-### 6.2 JSON 스타일 데이터 조립
-```cpp
-void sendJsonStatus(int id, float temp) {
-    cms::String<128> json;
-    json.printf("{\"id\":%d,\"temp\":%.2f,\"status\":\"OK\"}", id, temp);
-
-    // 큐를 통해 전송 전용 태스크로 전달
-    static cms::ThreadSafeQueue<cms::String<128>, 5> mqttQueue;
-    mqttQueue.enqueue(json);
-}
-```
-
-### 6.3 명령어 히스토리 관리
-```cpp
-cms::Queue<cms::String<32>, 5> history;
-auto& logger = cms::AsyncLogger<>::instance();
-
-void onCommand(const char* cmd) {
-    cms::String<32> s = cmd;
-    history.enqueue(s); // 가장 오래된 명령어부터 자동으로 밀려남
-}
-
-void showHistory() {
-    cms::String<32> item;
-    logger.i("--- Last 5 Commands ---");
-    for (uint8_t i = 0; i < history.size(); ++i) {
-        history.getAt(i, item);
-        logger.i("%d: %s", i + 1, item.c_str());
-    }
-}
-```
-
----
-
-## 7. 성능 및 리소스 최적화 팁
-
-### 7.1 프로파일링을 통한 버퍼 크기 결정
-```cpp
-auto& logger = cms::AsyncLogger<>::instance();
-cms::String<512> testStr;
-// ... 실제 로직 수행 ...
-logger.i("Peak usage: %.1f%%", testStr.peakUtilization());
-// 만약 Peak가 20% 미만이라면 버퍼 크기를 128로 줄여 RAM을 절약하세요.
-```
-
-### 7.2 큐 인덱스 타입 최적화
-```cpp
-// 큐 크기가 255 이하인 경우 IndexType을 uint8_t로 지정하여 RAM을 아끼세요.
-cms::Queue<int, 50, uint8_t> smallQueue;
-```
-
-### 7.3 리터럴 비교 최적화
-```cpp
-// 아래 코드는 내부적으로 strlen을 호출하지 않고 컴파일 타임에 최적화됩니다.
-if (str == "START") { ... }
-```
-
----
-
-> **Tip**: 모든 예제는 `Zero-Heap` 원칙을 준수합니다. `cms::String<N>`의 `N` 크기는 해당 함수가 실행되는 스택(Stack) 크기를 고려하여 적절히 설정하세요. 대형 버퍼는 `static` 또는 전역 변수로 선언하는 것이 안전합니다.
+Allocation과 exception 동작은 underlying standard container와 allocator를 따른다. Fixed
+capacity와 predictable storage가 필요하면 `log::AsyncLogger`를 사용한다.
