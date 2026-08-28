@@ -109,9 +109,6 @@ function(cms_configure_target target_name)
 endfunction()
 
 add_library(cms_utils STATIC
-    src/cmsAsyncLogger.cpp
-    src/cmsStringBase.cpp
-    src/cmsStringUtil.cpp
     src/format.cpp
     src/log/ansi_formatter.cpp
     src/log/formatter.cpp
