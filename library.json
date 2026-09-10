@@ -1,8 +1,8 @@
 {
   "name": "cmsUtils",
-  "version": "1.0.0",
-  "description": "A general-purpose C++ utility library with explicit deterministic zero-heap paths and opt-in host convenience components. Includes UTF-8 strings, fixed-capacity queues, and configurable logging.",
-  "keywords": "embedded, utility, string, utf8, queue, logger, heapless, esp32, async-logging",
+  "version": "2.0.0",
+  "description": "A general-purpose C++17 utility library for embedded and host environments, including strings, UTF-8, format/parse, binary utilities, CRC-32, SHA-256, DJB2, queues, logging, INI, and platform adapters.",
+  "keywords": "embedded, host, utility, string, utf8, binary, crc32, sha256, djb2, ini, queue, logger, esp32, async-logging",
   "repository": {
     "type": "git",
     "url": "https://github.com/comserDev/cmsUtils.git"

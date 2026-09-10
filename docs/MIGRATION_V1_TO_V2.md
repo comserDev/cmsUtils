@@ -5,8 +5,8 @@ cmsUtils V2는 V1과 source-compatible한 release가 아니다. V1 compatibility
 있으며, `cms` root에는 `Status` 같은 generic 이름을 추가하지 않는다.
 
 V2는 fixed-capacity 기반의 deterministic/zero-heap component와 `std::queue`, file output 같은
-host opt-in component를 구분한다. 기존 V1 코드를 바로 제거하기보다 이 문서를 기준으로 사용처를
-차례로 전환하고, 각 단계에서 반환 상태와 resource contract를 확인하는 방식을 권장한다.
+Host 선택 기능을 구분한다. 기존 V1 코드를 바로 제거하기보다 이 문서를 기준으로 사용처를
+차례로 전환하고, 각 단계에서 반환 상태와 메모리 및 실행 자원 사용 방식을 확인하는 것이 좋다.
 
 ## Include와 namespace
 
@@ -34,7 +34,7 @@ V2 타입을 `cms::Status`나 `cms::String`으로 노출하는 root-level conven
 `StorageBytes`에는 terminating NUL이 포함되므로 `StaticString<16>::maxSize()`는 15다.
 
 V1에서 owning `String<N>`의 공통 로직을 담당하던 non-owning `StringBase`는 제거됐다. 외부
-또는 fixed storage를 수정하는 알고리즘에는 상속 대신 `StringBuffer` composition을 사용한다.
+또는 fixed storage를 수정하는 알고리즘에는 상속 대신 `StringBuffer` 조합을 사용한다.
 `StringBuffer`는 문자 storage와 현재 size state를 공유하는 mutable non-owning view이므로,
 두 대상의 lifetime을 caller가 보장해야 한다. V1의 `Token` 역할은 `StringView`가 맡는다.
 
@@ -51,11 +51,11 @@ V2의 기본 `assign()`과 `append()`는 transactional하다. 전체 결과가 �
 `WriteResult::written`과 `required`는 기존 payload와 terminating NUL을 포함하지 않는다.
 따라서 `WriteResult`를 반환하는 쓰기 API에서는 `result.status`를 확인해야 한다.
 
-## String operation 대응
+## 문자열 연산 대응
 
 | V1 의도 | V2 API |
 | --- | --- |
-| `trim()` | `string::trimAsciiWhitespace(view)` |
+| `trim()` | `string::trim(view)` |
 | equality / ordering | `string::equals`, `string::compare` |
 | ASCII ignore-case | `compareIgnoreAsciiCase`, `equalsIgnoreAsciiCase`, `startsWithIgnoreAsciiCase`, `endsWithIgnoreAsciiCase` |
 | ignore-case search | `findIgnoreAsciiCase`, `findLastIgnoreAsciiCase` |
@@ -111,7 +111,7 @@ V1의 `toInt()`와 `toFloat()`는 ASCII leading whitespace를 허용했다. `isD
 필요한 call site는 parser를 바꾸지 말고 먼저 trim한다.
 
 ```cpp
-const auto trimmed = cms::util::string::trimAsciiWhitespace(input);
+const auto trimmed = cms::util::string::trim(input);
 ```
 
 전체 입력 validation은 다음처럼 parse 상태와 consumed 길이를 함께 확인한다.
@@ -131,7 +131,7 @@ const bool isNumeric = numeric.status == cms::util::Status::ok
 ```
 
 `toInt()`, `toFloat()`, `hexToInt()` 사용처도 기존 leading whitespace 입력을 계속 받아야 한다면
-`trimAsciiWhitespace()` 결과를 각각 `signedInteger()`, `floatingPoint()`,
+`trim()` 결과를 각각 `signedInteger()`, `floatingPoint()`,
 `unsignedInteger(..., 16)`에 전달한다.
 
 ## 일반 String printf의 변경
@@ -145,8 +145,8 @@ String formatter는 V2 core에 없다. Deterministic typed formatting과 printf 
 - floating-point는 `format::floatingPoint()`를 사용한다.
 - Logger producer의 printf-style convenience가 필요하면 `cms::util::log::logf()`를 사용한다.
 
-`logf()`는 libc `snprintf` semantics를 사용하는 opt-in helper다. Strict deterministic
-formatter와 같은 resource contract로 간주하면 안 된다. V1 integer width와 `padChar`는 별도
+`logf()`는 libc `snprintf` 규칙을 사용하는 선택 helper다. Strict deterministic
+formatter와 같은 자원 사용 방식으로 간주하면 안 된다. V1 integer width와 `padChar`는 별도
 V2 API로 복원하지 않았으므로 필요한 application에서 padding을 명시적으로 조립한다.
 
 ## 복원하지 않은 String convenience
@@ -221,13 +221,13 @@ V2에 runtime global time-mode toggle이 있다고 가정하면 안 된다. Runt
 | host file | `platform::StdFileSink` |
 | 두 destination | `log::TeeSink<FirstSink, SecondSink>` |
 
-Sink contract는 `Status write(StringView)`다. `drainOne()`은 queue lock 밖에서 formatter와 sink를
+Sink 규칙은 `Status write(StringView)`다. `drainOne()`은 queue lock 밖에서 formatter와 sink를
 호출하고 sink의 `Status`를 그대로 반환한다. Record는 sink 호출 전에 dequeue되므로 실패 시
-자동 retry/requeue하지 않는다. 즉 한 record의 output은 at-most-once attempt semantics다.
+자동 retry/requeue하지 않는다. 즉 한 record의 output은 한 번만 시도된다.
 
-`StdFileSink`는 `FILE`/stdio resource를 사용하는 host opt-in component다. 이 기능 때문에
+`StdFileSink`는 `FILE`/stdio 자원을 사용하는 Host 선택 기능이다. 이 기능 때문에
 library 전체가 zero-heap이라고 주장하면 안 된다. `ArduinoUdpSink`는 UDP 객체를 소유하지
-않으며 application이 socket 초기화와 lifetime을 담당한다. Formatted line 하나를 UDP packet
+않으며 application이 socket 초기화와 lifetime을 담당한다. 포맷된 line 하나를 UDP packet
 하나로 전송한다. `TeeSink`는 `FirstSink`가 non-`ok` `Status`를 반환해도 `SecondSink` 호출을
 시도하며, 둘 다 `Status`를 반환했다면 첫 non-`ok`을 우선 반환한다. Exception은 catch하거나
 `Status`로 변환하지 않으므로 `FirstSink::write()`가 throw하면 `SecondSink` 호출은 보장되지
@@ -236,11 +236,11 @@ library 전체가 zero-heap이라고 주장하면 안 된다. `ArduinoUdpSink`�
 ## std::queue Logger
 
 `log::AsyncLogger`는 fixed-capacity queue를 소유하는 deterministic path다.
-`log::StdQueueAsyncLogger`는 dynamic allocation이 가능한 host opt-in path다. 후자는
-capacity/full/overwrite contract가 없고 allocation과 exception 동작은 underlying standard
+`log::StdQueueAsyncLogger`는 dynamic allocation이 가능한 Host 선택 경로다. 후자는
+capacity/full/overwrite 규칙이 없고 allocation과 exception 동작은 underlying standard
 container와 allocator를 따른다.
 
-## Error semantics
+## 오류 처리 규칙
 
 V2에서는 실패를 반환값에 숨기지 않는다.
 

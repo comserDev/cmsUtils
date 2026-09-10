@@ -1,8 +1,8 @@
-# cmsUtils 2.0 API Reference
+# cmsUtils 2.0 API 레퍼런스
 
-cmsUtils는 embedded와 host 환경에서 함께 사용하는 범용 C++17 utility library다. V2 public
-API는 `cms::util` 아래에 있고 canonical public header는 `include/cms/util`에 있다. `cms` root
-convenience alias는 제공하지 않는다. V2는 V1과 source-compatible하지 않으며 이전 방법은
+cmsUtils는 embedded와 Host 환경에서 함께 사용하는 범용 C++17 유틸리티 라이브러리다. V2 public
+API는 `cms::util` 아래에 있고 기준 public header는 `include/cms/util`에 있다. `cms` root
+편의 alias는 제공하지 않는다. V2는 V1과 source-compatible하지 않으며 이전 방법은
 [V1 → V2 마이그레이션 가이드](MIGRATION_V1_TO_V2.md)를 참고한다.
 
 `cms::util::detail`과 `cms::util::log::detail`은 구현 전용이므로 직접 사용하지 않는다.
@@ -31,9 +31,9 @@ struct ParseResult {
 };
 ```
 
-`written`과 `required`는 이번 operation의 payload byte 수이며 기존 destination 크기와 terminating
-NUL을 포함하지 않는다. Transactional API가 실패하면 `written == 0`이고 destination은
-불변이다. 명시적 truncation API는 실제 기록량과 전체 필요량을 각각 반환한다.
+`written`과 `required`는 이번 작업의 payload byte 수이며 기존 destination 크기와 terminating
+NUL을 포함하지 않는다. 실패하면 `written == 0`이고 destination은 불변이다. 명시적 truncation
+API는 실제 기록량과 전체 필요량을 각각 반환한다.
 `ParseResult::consumed`는 input 시작부터 소비한 byte 수다. `T`는 value-initializable이어야 한다.
 
 ## 2. 문자열 storage와 view
@@ -113,7 +113,7 @@ move source는 빈 문자열이 된다. 기본 assign/append는 transactional이
 byte truncation을 허용한다. Truncation은 UTF-8 경계를 보장하지 않는다. `buffer()`는 내부
 storage와 size를 alias하므로 원본보다 오래 유지할 수 없다.
 
-## 3. String operations
+## 3. 문자열 연산
 
 Header: `<cms/util/string_ops.h>` · Namespace: `cms::util::string`
 
@@ -123,7 +123,7 @@ int compare(StringView lhs, StringView rhs) noexcept;
 bool equals(StringView lhs, StringView rhs) noexcept;
 bool startsWith(StringView value, StringView prefix) noexcept;
 bool endsWith(StringView value, StringView suffix) noexcept;
-StringView trimAsciiWhitespace(StringView value) noexcept;
+StringView trim(StringView value) noexcept;
 int compareIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept;
 bool equalsIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept;
 bool startsWithIgnoreAsciiCase(StringView value, StringView prefix) noexcept;
@@ -168,6 +168,7 @@ struct DecodeResult {
 };
 DecodeResult decodeNext(StringView input, std::size_t offset) noexcept;
 Status validate(StringView input) noexcept;
+StringView trim(StringView value) noexcept;
 ParseResult<std::size_t> count(StringView input) noexcept;
 WriteResult substring(StringView input, std::size_t firstCodePoint,
                       std::size_t count, StringBuffer output) noexcept;
@@ -179,7 +180,7 @@ Unicode scalar value/code point 기준이며 grapheme cluster, normalization, lo
 `sanitize()`도 invalid byte마다 U+FFFD를 기록한다. `substring()`과 `sanitize()`는
 transactional이며 input/output overlap을 지원하지 않는다.
 
-## 5. Number format/parse
+## 5. 숫자 format/parse
 
 ### Formatting
 
@@ -362,14 +363,14 @@ template<std::size_t MessageBytes, class Clock, class Sink, class Mutex,
 using StdQueueAsyncLogger = /* implementation-defined */;
 ```
 
-`std::queue` storage를 선택하는 host convenience다. Dynamic allocation이 가능하고 fixed
-capacity/full/overwrite contract가 없다. Exception과 allocation은 underlying container와
-allocator contract를 따르며 `Status`로 변환하지 않는다.
+`std::queue` storage를 선택하는 Host 편의 기능이다. Dynamic allocation이 가능하고 fixed
+capacity/full/overwrite 규칙이 없다. Exception과 allocation은 underlying container와
+allocator 규칙을 따르며 `Status`로 변환하지 않는다.
 
 `<cms/util/log/printf_log.h>`의
 `logf(Logger&, Level, const char*, Args&&...)`는 libc `snprintf`를 사용하는 opt-in helper다.
 Filtered log는 formatting을 건너뛴다. Null/formatting 오류는 `invalid_argument`, oversize는
-`no_space`이며 enqueue하지 않는다. Typed formatter와 같은 resource contract라고 주장하지 않는다.
+`no_space`이며 enqueue하지 않는다. Typed formatter와 같은 자원 사용 방식이라고 볼 수 없다.
 
 ### TeeSink
 
@@ -379,7 +380,55 @@ Header: `<cms/util/log/tee_sink.h>` · Type: `TeeSink<FirstSink, SecondSink>`
 non-`ok`을 우선한다. Exception은 catch하지 않으므로 First가 throw하면 Second 호출은 보장되지
 않는다. Partial success가 가능하고 rollback하지 않는다.
 
-## 8. Platform adapters
+## 플랫폼 공통 INI
+
+Header: `<cms/util/ini/document.h>` · Type: `cms::util::ini::Document`
+
+`Document`는 Host와 ESP32에서 공통으로 사용하는 INI 문서 모델이다. 파싱,
+문서 수정, 중복 키, global/root section, 줄 순서와 줄바꿈 보존을 담당한다.
+`std::string`, `std::vector`, `std::unordered_map`을 사용할 수 있는 동적
+메모리 기반 편의 기능이며 deterministic zero-heap component는 아니다.
+
+```cpp
+cms::util::ini::Document config;
+config["Network"]["ssid"] = "NAMU001";
+std::string ssid = config["Network"]["ssid"];
+auto port = config["Network"]["port"].get();
+```
+
+Host용 파일 함수는 `<cms/util/ini/file.h>`에 선언되어 있다.
+
+```cpp
+cms::util::Status loadFile(
+    const char* path,
+    cms::util::ini::Document& document);
+cms::util::Status saveFile(
+    const char* path,
+    const cms::util::ini::Document& document);
+```
+
+ESP32용 overload는 `<cms/util/ini/arduino_file.h>`에 있으며, 같은
+`cms::util::ini` namespace에서 `fs::FS` 호환 파일시스템을 받는다. 따라서
+`LittleFS`, `SPIFFS`, `SD`를 같은 방식으로 사용할 수 있다. `document.h`와
+`file.h`를 include할 때 Arduino SDK가 필요하지 않으며, ESP32 파일시스템
+overload를 사용할 때만 Arduino adapter header를 include하면 된다.
+
+`loadFile`의 세 번째 인수로 `TextMode::automatic`, `TextMode::ascii`,
+`TextMode::utf8`을 선택할 수 있으며 기본값은 `automatic`이다. `automatic`은 파일
+시작의 UTF-8 BOM을 제거한 뒤 UTF-8로 처리하고, BOM이 없으면 전체 입력을 검사해
+UTF-8 또는 byte/ASCII 방식으로 판정한다. ASCII-only 입력은 올바른 UTF-8로 처리된다.
+`utf8` mode의 잘못된 입력은 `Status::invalid_utf8`이며 기존 `Document`는 바뀌지 않는다.
+문자열 양끝 공백은 ASCII mode에서 `string::trim()`, UTF-8 mode에서
+`utf8::trim()`이 처리한다.
+
+`utf8::trim()`은 Unicode White_Space에 해당하는 code point를 양끝에서 제거한
+non-owning `StringView`를 반환한다. 유효하지 않은 UTF-8 입력은 이 함수에서
+공백으로 해석하지 않는다.
+
+파싱 규칙, `SectionProxy`/`ValueProxy`, 줄과 줄바꿈 보존, load 실패 시 기존
+문서를 유지하는 규칙에 대한 자세한 설명은 [INI.md](INI.md)를 참고한다.
+
+## 8. 플랫폼 adapter
 
 Namespace: `cms::util::platform`
 
@@ -447,24 +496,24 @@ begin/stop, local port, lifetime을 관리한다. Empty write는 UDP API를 호�
 write 하나가 packet 하나이며 beginPacket, exact write, endPacket 중 하나라도 실패하면
 `io_error`다. Short write에서도 endPacket을 호출하고 side effect를 rollback하지 않는다.
 
-## 9. Resource profile
+## 9. 자원 사용 방식
 
-### Deterministic / fixed-storage
+### 고정 저장소를 사용하는 Deterministic component
 
 `StringView`, `StringBuffer`, `StaticString`, string/UTF-8/format/parse algorithm과
 `StaticQueue`는 runtime heap을 사용하지 않는다. `SynchronizedQueue` wrapper 자체도 dynamic
-allocation을 추가하지 않지만 전체 instance의 resource contract는 Queue와 Mutex backend에
+allocation을 추가하지 않지만 전체 instance의 자원 사용 방식은 Queue와 Mutex backend에
 의존한다. `StaticQueue`와 deterministic mutex backend 조합은 deterministic path이고,
-`StdMutex` 같은 platform/host backend를 선택하면 해당 backend contract도 함께 적용된다.
+`StdMutex` 같은 platform/Host backend를 선택하면 해당 backend 규칙도 함께 적용된다.
 Fixed-capacity `AsyncLogger`의 queue/message storage는 고정 용량이지만 완성된 logger의 전체
-contract는 선택한 Clock/Sink/Mutex/Formatter에도 의존한다.
+자원 사용 방식은 선택한 Clock/Sink/Mutex/Formatter에도 의존한다.
 
-### Host/platform-dependent
+### Host 및 플랫폼 의존 기능
 
 `StdMutex`, host clock, `StdoutSink`, `StdFileSink`는 host library/stdio resource에 의존한다.
 Arduino/FreeRTOS adapter는 해당 platform API와 caller-managed lifecycle을 따른다.
 
-### Dynamic/optional
+### 동적 메모리를 사용하는 선택 기능
 
 `StdQueueAsyncLogger`는 `std::queue` allocation을 허용하는 opt-in이다. `logf`는 libc
 `snprintf` opt-in helper다. 따라서 cmsUtils 전체가 항상 zero-heap이라고 일반화하지 않는다.
@@ -476,7 +525,7 @@ Generic/deterministic header는 host/platform header에 의존하지 않는다. 
 Arduino/FreeRTOS dependency도 해당 adapter header에만 있다. `detail` header는 public include
 tree에 존재하더라도 implementation 전용이며 public API나 사용자 코드에서 직접 참조하지 않는다.
 
-## 11. Binary utilities
+## 11. Binary utility
 
 Binary utility는 모두 `cms::util` 아래의 deterministic / zero-heap component다. C++17,
 exception-free, RTTI-free 구성에서 사용할 수 있고 host byte order나 unaligned integer access에
@@ -572,6 +621,23 @@ Writer는 기존 buffer 끝에 이어 쓴다. 성공한 operation만 shared size
 공간 부족은 `Status::no_space`, invalid buffer는 `Status::invalid_argument`이며 실패 시 destination
 content와 size를 변경하지 않는다. `writeBytes()`는 source/destination overlap을 지원한다.
 
+### SHA-256
+
+Header: `<cms/util/crypto/sha256.h>` · Namespace: `cms::util::crypto`
+
+```cpp
+constexpr std::size_t Sha256DigestSize = 32;
+
+Status sha256(
+    ByteView input,
+    std::uint8_t (&digest)[Sha256DigestSize]) noexcept;
+```
+
+`sha256()`는 입력 byte 전체를 SHA-256으로 계산해 caller가 제공한 32-byte
+`digest` 배열에 기록한다. 입력은 `ByteView`로 받으므로 embedded NUL과 임의의
+binary byte를 처리할 수 있다. 이 함수는 digest 계산만 제공하며 HMAC, secret 관리,
+constant-time 비교나 인증 절차를 제공하지 않는다.
+
 ### DJB2
 
 Header: `<cms/util/hash/djb2.h>` · Namespace: `cms::util::hash`
@@ -593,11 +659,10 @@ constexpr std::uint32_t djb2(ByteView input) noexcept;
 constexpr std::uint32_t djb2(StringView input) noexcept;
 ```
 
-The hash starts at `5381` and applies `hash * 33 + byte` with fixed
-`std::uint32_t` wraparound. It is byte-exact, accepts embedded NUL and other
-binary bytes, and performs no case normalization. It is a non-cryptographic
-utility; do not use it for authentication, integrity protection, or globally
-unique identifiers.
+초기값은 `5381`이며 `hash * 33 + byte`를 `std::uint32_t` wraparound 규칙으로
+계산한다. 입력 byte를 그대로 처리하고 embedded NUL과 다른 binary byte도 허용하며,
+해시 내부에서 대소문자를 변환하지 않는다. DJB2는 비암호학적 utility이므로
+authentication, integrity protection, globally unique identifier에 사용하면 안 된다.
 
 ### CRC-32/ISO-HDLC
 

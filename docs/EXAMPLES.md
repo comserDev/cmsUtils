@@ -1,23 +1,23 @@
 # cmsUtils V2 예제
 
-cmsUtils는 component마다 resource profile이 다르다.
+cmsUtils는 component마다 메모리와 실행 자원 사용 방식이 다르다.
 
-- `StaticString`과 `StaticQueue`는 fixed storage를 사용하는 deterministic component다.
+- `StaticString`과 `StaticQueue`는 고정 storage를 사용하는 deterministic component다.
 - fixed-capacity `AsyncLogger`의 queue와 message storage도 고정 용량이며 cmsUtils가 제어하는
-  heap allocation을 사용하지 않는다. 다만 완성된 Logger의 전체 resource contract는 선택한
-  `Clock`, `Sink`, `Mutex`, `Formatter`에도 의존한다. `StdMutex`, `StdFileSink` 같은 host adapter를
+  heap allocation을 사용하지 않는다. 다만 완성된 Logger의 전체 자원 사용 방식은 선택한
+  `Clock`, `Sink`, `Mutex`, `Formatter`에도 의존한다. `StdMutex`, `StdFileSink` 같은 Host adapter를
   조합한 구성을 strict embedded/deterministic profile이라고 일반화하지 않는다.
 - Arduino, FreeRTOS, stdout 같은 기능은 platform adapter로 분리된다.
-- `StdQueueAsyncLogger`는 내부 `std::queue`에서 dynamic allocation이 발생할 수 있다.
-- `logf`는 libc `snprintf`를 사용하는 opt-in helper다.
+- `StdQueueAsyncLogger`는 내부 `std::queue`에서 동적 메모리를 할당할 수 있다.
+- `logf`는 libc `snprintf`를 사용하는 선택 기능이다.
 
-Library 전체나 모든 사용 환경이 항상 zero-heap이라고 가정하면 안 된다. 선택한 component의
-resource contract를 기준으로 판단한다.
+라이브러리 전체나 모든 사용 환경이 항상 zero-heap이라고 가정하면 안 된다. 선택한 component의
+자원 사용 규칙을 기준으로 판단한다.
 
 ## 1. StaticString과 명시적 오류 처리
 
-`StorageBytes`에는 terminating NUL이 포함된다. 기본 쓰기 API는 공간 부족 시 destination을
-바꾸지 않는 transactional operation이다.
+`StorageBytes`에는 terminating NUL이 포함된다. 기본 쓰기 API는 공간이 부족할 때 destination을
+바꾸지 않는다.
 
 ```cpp
 #include <cms/util/static_string.h>
@@ -37,7 +37,7 @@ if (assigned.status == cms::util::Status::ok) {
 
 ## 2. StringView split과 parse
 
-Split 결과는 원본 storage를 가리키는 non-owning view다. Parser는 numeric prefix를 허용하므로
+나누기 결과는 원본 storage를 가리키는 non-owning view다. Parser는 numeric prefix를 허용하므로
 전체 token validation에는 `consumed` 길이도 확인한다.
 
 ```cpp
@@ -154,13 +154,13 @@ if (logger.log(cms::util::log::Level::info, "ready")
 }
 ```
 
-`drainOne()`은 record를 dequeue한 뒤 sink를 호출한다. Output 실패 시 자동 retry나 requeue는
+`drainOne()`은 record를 dequeue한 뒤 sink를 호출한다. 출력 실패 시 자동 retry나 requeue는
 없다.
 
-## 7. logf opt-in convenience
+## 7. logf 선택 기능
 
-`logf`는 libc `snprintf` semantics를 쓰는 producer-side helper다. Strict deterministic typed
-formatter와 같은 resource contract가 아니다.
+`logf`는 libc `snprintf` 규칙을 쓰는 producer-side helper다. Strict deterministic typed
+formatter와 같은 자원 사용 규칙을 따르지 않는다.
 
 ```cpp
 #include <cms/util/log/printf_log.h>
@@ -207,7 +207,7 @@ enqueue 시점에 적용되므로 `setMinLevel()` 또는 `setLoggingEnabled()`�
 
 ## 9. StdFileSink
 
-`StdFileSink`는 `FILE`/stdio resource를 사용하는 host opt-in component다.
+`StdFileSink`는 `FILE`/stdio 자원을 사용하는 Host 선택 기능이다.
 
 ```cpp
 #include <cms/util/platform/std_file_sink.h>
@@ -250,7 +250,7 @@ if (file.open("application.log") == cms::util::Status::ok) {
 ## 11. Arduino Serial과 UDP
 
 `ArduinoUdpSink`는 UDP 객체를 소유하지 않는다. Application이 WiFi 연결, `udp.begin()`, local
-port와 UDP lifetime을 관리한다. Formatted log line 하나가 UDP packet 하나가 된다.
+port와 UDP lifetime을 관리한다. 포맷된 로그 한 줄이 UDP packet 하나가 된다.
 
 ```cpp
 WiFiUDP udp;
@@ -267,10 +267,10 @@ Output output{
 
 전체 logger wiring은 [`examples/ArduinoUdpLogger/ArduinoUdpLogger.ino`](../examples/ArduinoUdpLogger/ArduinoUdpLogger.ino)를 참고한다.
 
-## 12. StdQueueAsyncLogger host opt-in
+## 12. StdQueueAsyncLogger Host 선택 기능
 
-`StdQueueAsyncLogger`는 `std::queue` storage를 명시적으로 선택하는 host convenience다. Dynamic
-allocation이 가능하고 capacity/full/overwrite contract가 없다.
+`StdQueueAsyncLogger`는 `std::queue` storage를 명시적으로 선택하는 Host 편의 기능이다. 동적
+메모리를 할당할 수 있고 capacity/full/overwrite 규칙이 없다.
 
 ```cpp
 #include <cms/util/log/std_queue_async_logger.h>
@@ -284,8 +284,8 @@ using HostLogger = cms::util::log::StdQueueAsyncLogger<
 HostLogger logger{Clock{}, Sink{}};
 ```
 
-Allocation과 exception 동작은 underlying standard container와 allocator를 따른다. Fixed
-capacity와 predictable storage가 필요하면 `log::AsyncLogger`를 사용한다.
+메모리 할당과 exception 동작은 underlying standard container와 allocator를 따른다. 고정
+용량과 예측 가능한 storage가 필요하면 `log::AsyncLogger`를 사용한다.
 
 ## 13. ByteView와 caller-owned ByteBuffer
 
@@ -313,7 +313,7 @@ if (payload.commit(3) == cms::util::Status::ok) {
 ```
 
 `capacity == 0`, `size == 0`인 buffer는 `data == nullptr`이어도 valid하다. `size > capacity`나
-non-zero capacity의 null storage는 invalid binding이다. `commit()` 실패는 기존 size를 바꾸지
+non-zero capacity의 null storage는 잘못된 연결이다. `commit()` 실패는 기존 size를 바꾸지
 않지만 raw access로 caller가 이미 바꾼 byte까지 rollback하지는 않는다.
 
 ## 14. StaticByteBuffer와 big-endian writer
@@ -343,7 +343,7 @@ if (writer.writeUint8(2) != cms::util::Status::ok
 
 `writeUint16BigEndian`, `writeUint32BigEndian`, `writeUint64BigEndian`은 host byte order와
 alignment에 의존하지 않는다. `writeBytes()`는 source가 destination storage와 겹쳐도 지원한다.
-공간 부족은 `Status::no_space`, invalid output binding은 `Status::invalid_argument`다.
+공간 부족은 `Status::no_space`, 잘못된 output binding은 `Status::invalid_argument`다.
 
 ## 15. Transactional big-endian reader
 
@@ -407,7 +407,72 @@ const std::uint32_t chunked = incremental.value();
 Wire format이 checksum field를 0으로 간주하도록 정의한다면 해당 field를 제외한 두 구간 또는
 0 byte 네 개를 포함한 구간을 protocol layer에서 올바른 순서로 `update()`한다.
 
-## 17. Binary utility와 protocol의 경계
+## 17. SHA-256 digest
+
+`sha256()`는 입력 byte를 32-byte digest로 계산한다. 결과 배열은 호출자가 소유하며,
+이 함수 자체는 HMAC이나 인증 절차를 제공하지 않는다.
+
+```cpp
+#include <cstdint>
+
+#include <cms/util/crypto/sha256.h>
+
+const std::uint8_t message[] = {'a', 'b', 'c'};
+std::uint8_t digest[cms::util::crypto::Sha256DigestSize] = {};
+
+if (cms::util::crypto::sha256(
+        cms::util::ByteView(message),
+        digest) == cms::util::Status::ok) {
+    useDigest(digest);
+}
+```
+
+## 18. DJB2
+
+`Djb2`는 byte 단위 one-shot 계산과 여러 조각을 이어 계산하는 incremental update를
+모두 지원한다. 32-bit wraparound를 사용하며 cryptographic hash로 사용하지 않는다.
+
+```cpp
+#include <cms/util/hash/djb2.h>
+
+const std::uint32_t oneShot =
+    cms::util::hash::djb2(cms::util::StringView("NAMU001"));
+
+cms::util::hash::Djb2 incremental;
+incremental.update(cms::util::StringView("NAMU"));
+incremental.update(cms::util::StringView("001"));
+const std::uint32_t chunked = incremental.value();
+// chunked == oneShot
+```
+
+## 19. INI 문서
+
+`Document`는 주석과 줄 순서를 보존하면서 INI 값을 읽고 수정한다. Host와 ESP32에서
+같은 문서 모델을 사용하며, 실제 파일 입출력은 환경에 맞는 `loadFile`/`saveFile` overload를
+선택한다.
+
+```cpp
+#include <cms/util/ini/document.h>
+#include <cms/util/ini/file.h>
+
+cms::util::ini::Document config;
+cms::util::ini::loadFile("config.ini", config);
+config["Network"]["port"] = "8080";
+const auto port = config["Network"]["port"].get();
+cms::util::ini::saveFile("config.ini", config);
+```
+
+ESP32에서는 `<cms/util/ini/arduino_file.h>`의 `fs::FS` overload에
+`LittleFS`, `SPIFFS`, `SD` 등을 전달한다. `Document`는 ESP32에서 사용할 수 있지만
+`std::string`, `std::vector`, `std::unordered_map`을 사용할 수 있는 동적 메모리 기반
+component다. 자세한 보존 규칙은 [INI 문서](INI.md)를 참고한다.
+
+`TextMode::automatic`은 UTF-8 BOM과 전체 UTF-8 validation 결과를 기준으로 mode를
+선택한다. 필요하면 `TextMode::ascii` 또는 `TextMode::utf8`을 명시할 수 있다.
+`TextMode::utf8`은 잘못된 입력에서 기존 `Document`를 변경하지 않고
+`Status::invalid_utf8`를 반환한다.
+
+## 20. Binary utility와 protocol의 경계
 
 Binary utility는 unsigned integer와 raw byte sequence만 읽고 쓴다. 다음 의미는 application 또는
 protocol codec이 정의한다.

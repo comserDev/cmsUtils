@@ -1,26 +1,26 @@
-# DJB2 hash
+# DJB2 해시
 
-cmsUtils V2 exposes a small, general-purpose DJB2 utility at
-`<cms/util/hash/djb2.h>`. It is a byte-exact, non-cryptographic hash with a
-fixed 32-bit wraparound contract:
+cmsUtils V2는 `<cms/util/hash/djb2.h>`에서 범용 DJB2 utility를 제공한다. 입력
+byte를 그대로 처리하는 비암호학적 해시이며, 모든 연산을 32-bit 범위에서
+wraparound한다.
 
 ```text
 hash = 5381
 hash = hash * 33 + byte
 ```
 
-The public API includes the `cms::util::hash::Djb2` state object and the
-`cms::util::hash::djb2()` one-shot overloads for `ByteView` and `StringView`.
-`StringView` bytes are converted to unsigned bytes; no case normalization is
-performed by the hash itself. Embedded NUL and other binary byte values are
-valid input.
+public API에는 상태를 보관하는 `cms::util::hash::Djb2`와 `ByteView`,
+`StringView`를 받는 one-shot `cms::util::hash::djb2()` overload가 있다.
+`StringView`의 각 byte는 unsigned byte로 처리하며, 해시 내부에서 대소문자를
+변환하지 않는다. embedded NUL을 포함한 모든 binary byte를 입력으로 사용할 수
+있다.
 
-The styled ANSI formatter keeps ASCII uppercase conversion as its presentation
-policy before feeding tag bytes to `Djb2`, preserving its existing V1 color
-mapping.
+styled ANSI formatter는 기존 V1 색상 매핑을 유지하기 위해 tag byte를 ASCII
+uppercase로 변환하는 표현 정책을 적용한 뒤 `Djb2`에 전달한다.
 
-DJB2 is not a cryptographic hash and must not be used for authentication,
-integrity protection, persistent globally unique identifiers, or collision
-resistance. Use SHA-256, HMAC, or CRC-32 according to the protocol contract.
+DJB2는 cryptographic hash가 아니므로 authentication, integrity protection,
+persistent globally unique identifier, collision resistance에 사용하면 안 된다.
+프로토콜에서 요구하는 목적에 따라 SHA-256이나 CRC-32를 선택하고, 인증에는 별도
+HMAC 구현을 사용한다.
 
-See the [V2 API reference](API_REFERENCE.md) for the public declarations.
+public 선언은 [V2 API 레퍼런스](API_REFERENCE.md)에서 확인할 수 있다.
