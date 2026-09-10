@@ -75,6 +75,28 @@ target_compile_features(cms_djb2_tests PRIVATE cxx_std_17)
 cms_configure_target(cms_djb2_tests)
 add_test(NAME cms.djb2 COMMAND cms_djb2_tests)
 
+add_library(cms_ini_document_header_compile OBJECT
+    compile/test_ini_document_header.cpp
+)
+
+target_compile_features(cms_ini_document_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_ini_document_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_ini_document_header_compile)
+
+add_executable(cms_ini_document_tests
+    unit/test_ini_document.cpp
+)
+
+target_link_libraries(cms_ini_document_tests PRIVATE cms_utils)
+target_include_directories(cms_ini_document_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_compile_features(cms_ini_document_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_ini_document_tests)
+add_test(NAME cms.ini_document COMMAND cms_ini_document_tests)
+
 add_library(cms_status_compile_contract OBJECT
     compile/test_status_contract.cpp
 )

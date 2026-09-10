@@ -41,9 +41,9 @@ static_assert(
     std::is_same<decltype(&cms::util::string::findLast), FindLast>::value,
     "findLast has the wrong signature");
 static_assert(std::is_same<
-    decltype(&cms::util::string::trimAsciiWhitespace),
+    decltype(&cms::util::string::trim),
     Trim>::value,
-    "trimAsciiWhitespace has the wrong signature");
+    "trim has the wrong signature");
 static_assert(std::is_same<
     decltype(&cms::util::string::compareIgnoreAsciiCase),
     Compare>::value,

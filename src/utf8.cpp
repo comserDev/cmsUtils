@@ -20,6 +20,20 @@ bool additionOverflows(std::size_t value, std::size_t increment) noexcept {
     return increment > (std::numeric_limits<std::size_t>::max)() - value;
 }
 
+bool isUnicodeWhitespace(char32_t value) noexcept {
+    return (value >= 0x0009 && value <= 0x000D)
+        || value == 0x0020
+        || value == 0x0085
+        || value == 0x00A0
+        || value == 0x1680
+        || (value >= 0x2000 && value <= 0x200A)
+        || value == 0x2028
+        || value == 0x2029
+        || value == 0x202F
+        || value == 0x205F
+        || value == 0x3000;
+}
+
 WriteResult failure(Status status) noexcept {
     return {status, 0, 0};
 }
@@ -42,6 +56,38 @@ Status validate(StringView input) noexcept {
     }
 
     return Status::ok;
+}
+
+StringView trim(StringView value) noexcept {
+    std::size_t begin = 0;
+    while (begin < value.size()) {
+        const DecodeResult decoded =
+            detail::utf8::decodeNext(value, begin);
+        if (decoded.status != Status::ok
+            || !isUnicodeWhitespace(decoded.codePoint)) {
+            break;
+        }
+        begin += decoded.bytes;
+    }
+
+    std::size_t end = begin;
+    std::size_t offset = begin;
+    while (offset < value.size()) {
+        const DecodeResult decoded =
+            detail::utf8::decodeNext(value, offset);
+        if (decoded.status != Status::ok) {
+            // Invalid bytes are data, not whitespace. Preserve them and all
+            // following bytes because this view has no error return channel.
+            return value.substr(begin, value.size() - begin);
+        }
+
+        offset += decoded.bytes;
+        if (!isUnicodeWhitespace(decoded.codePoint)) {
+            end = offset;
+        }
+    }
+
+    return value.substr(begin, end - begin);
 }
 
 ParseResult<std::size_t> count(StringView input) noexcept {

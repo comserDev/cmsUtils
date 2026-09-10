@@ -110,6 +110,8 @@ endfunction()
 
 add_library(cms_utils STATIC
     src/crypto/sha256.cpp
+    src/ini/document.cpp
+    src/ini/file.cpp
     src/format.cpp
     src/log/ansi_formatter.cpp
     src/log/formatter.cpp

@@ -25,6 +25,10 @@ DecodeResult decodeNext(StringView input, std::size_t offset) noexcept;
 // input 전체가 올바른 UTF-8인지 검사한다.
 Status validate(StringView input) noexcept;
 
+// Unicode White_Space code point만 양끝에서 제거하고 원본 storage를 가리키는
+// view를 반환한다. 잘못된 UTF-8 구간은 공백으로 처리하지 않는다.
+StringView trim(StringView value) noexcept;
+
 // grapheme cluster가 아니라 Unicode scalar value 수를 센다. 실패하면 value에는
 // 오류 전까지 센 개수, consumed에는 잘못된 byte의 offset이 들어간다.
 ParseResult<std::size_t> count(StringView input) noexcept;

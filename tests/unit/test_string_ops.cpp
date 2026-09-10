@@ -205,21 +205,21 @@ int main() {
         cms::util::StringView(embeddedHaystack, sizeof(embeddedHaystack)),
         cms::util::StringView(embeddedSuffix, sizeof(embeddedSuffix))) == 3);
 
-    checkBytes(cms::util::string::trimAsciiWhitespace(empty), nullptr, 0);
-    checkBytes(cms::util::string::trimAsciiWhitespace(" \t\n\v\f\r"), nullptr, 0);
-    checkBytes(cms::util::string::trimAsciiWhitespace("  abc"), "abc", 3);
-    checkBytes(cms::util::string::trimAsciiWhitespace("abc\r\n"), "abc", 3);
-    checkBytes(cms::util::string::trimAsciiWhitespace("\tabc "), "abc", 3);
+    checkBytes(cms::util::string::trim(empty), nullptr, 0);
+    checkBytes(cms::util::string::trim(" \t\n\v\f\r"), nullptr, 0);
+    checkBytes(cms::util::string::trim("  abc"), "abc", 3);
+    checkBytes(cms::util::string::trim("abc\r\n"), "abc", 3);
+    checkBytes(cms::util::string::trim("\tabc "), "abc", 3);
     const char nonAsciiTrim[] = {byte(0xC2), byte(0xA0), 'A', byte(0xC2), byte(0xA0)};
     checkBytes(
-        cms::util::string::trimAsciiWhitespace(
+        cms::util::string::trim(
             cms::util::StringView(nonAsciiTrim, sizeof(nonAsciiTrim))),
         nonAsciiTrim,
         sizeof(nonAsciiTrim));
     const char nulTrim[] = {' ', '\0', 'A', ' '};
     const char nulTrimExpected[] = {'\0', 'A'};
     checkBytes(
-        cms::util::string::trimAsciiWhitespace(
+        cms::util::string::trim(
             cms::util::StringView(nulTrim, sizeof(nulTrim))),
         nulTrimExpected,
         sizeof(nulTrimExpected));

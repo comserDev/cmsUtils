@@ -89,6 +89,73 @@ void checkSanitize(
     CMS_TEST_CHECK(cms::util::utf8::validate(output.view()) == cms::util::Status::ok);
 }
 
+void testTrim() {
+    const char whitespaceWrapped[] = {
+        byte(0x09), byte(0x0A), byte(0x0B), byte(0x0C), byte(0x0D),
+        byte(0x20),
+        byte(0xC2), byte(0x85),
+        byte(0xC2), byte(0xA0),
+        byte(0xE1), byte(0x9A), byte(0x80),
+        byte(0xE2), byte(0x80), byte(0x80),
+        byte(0xE2), byte(0x80), byte(0x81),
+        byte(0xE2), byte(0x80), byte(0x82),
+        byte(0xE2), byte(0x80), byte(0x83),
+        byte(0xE2), byte(0x80), byte(0x84),
+        byte(0xE2), byte(0x80), byte(0x85),
+        byte(0xE2), byte(0x80), byte(0x86),
+        byte(0xE2), byte(0x80), byte(0x87),
+        byte(0xE2), byte(0x80), byte(0x88),
+        byte(0xE2), byte(0x80), byte(0x89),
+        byte(0xE2), byte(0x80), byte(0x8A),
+        byte(0xE2), byte(0x80), byte(0xA8),
+        byte(0xE2), byte(0x80), byte(0xA9),
+        byte(0xE2), byte(0x80), byte(0xAF),
+        byte(0xE2), byte(0x81), byte(0x9F),
+        byte(0xE3), byte(0x80), byte(0x80),
+        'X',
+        byte(0xE3), byte(0x80), byte(0x80),
+        byte(0xE2), byte(0x81), byte(0x9F),
+        byte(0xE2), byte(0x80), byte(0xAF),
+        byte(0xE2), byte(0x80), byte(0xA9),
+        byte(0xE2), byte(0x80), byte(0xA8),
+        byte(0xE2), byte(0x80), byte(0x8A),
+        byte(0xE2), byte(0x80), byte(0x89),
+        byte(0xE2), byte(0x80), byte(0x88),
+        byte(0xE2), byte(0x80), byte(0x87),
+        byte(0xE2), byte(0x80), byte(0x86),
+        byte(0xE2), byte(0x80), byte(0x85),
+        byte(0xE2), byte(0x80), byte(0x84),
+        byte(0xE2), byte(0x80), byte(0x83),
+        byte(0xE2), byte(0x80), byte(0x82),
+        byte(0xE2), byte(0x80), byte(0x81),
+        byte(0xE2), byte(0x80), byte(0x80),
+        byte(0xE1), byte(0x9A), byte(0x80),
+        byte(0xC2), byte(0xA0),
+        byte(0xC2), byte(0x85),
+        byte(0x20), byte(0x0D), byte(0x0C), byte(0x0B), byte(0x0A), byte(0x09)};
+    checkBytes(
+        cms::util::utf8::trim(cms::util::StringView(
+            whitespaceWrapped,
+            sizeof(whitespaceWrapped))),
+        "X",
+        1);
+
+    const char mixed[] = {
+        byte(0xE3), byte(0x80), byte(0x80),
+        'A',
+        byte(0xE3), byte(0x80), byte(0x80)};
+    checkBytes(
+        cms::util::utf8::trim(cms::util::StringView(mixed, sizeof(mixed))),
+        "A",
+        1);
+
+    const char invalid[] = {byte(0x80), 'A', byte(0x80)};
+    checkBytes(
+        cms::util::utf8::trim(cms::util::StringView(invalid, sizeof(invalid))),
+        invalid,
+        sizeof(invalid));
+}
+
 } // namespace
 
 int main() {
@@ -472,6 +539,8 @@ int main() {
     CMS_TEST_CHECK(damagedSanitize.required == 0);
     CMS_TEST_CHECK(damagedSize == sizeof(damagedStorage));
     CMS_TEST_CHECK(damagedStorage[0] == 'o');
+
+    testTrim();
 
     std::printf(
         "sizeof(cms::util::utf8::DecodeResult)=%zu\n",

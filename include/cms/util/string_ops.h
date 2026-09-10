@@ -20,7 +20,7 @@ bool startsWith(StringView value, StringView prefix) noexcept;
 bool endsWith(StringView value, StringView suffix) noexcept;
 
 // ASCII whitespace만 양끝에서 제거하고 원본 storage를 가리키는 view를 반환한다.
-StringView trimAsciiWhitespace(StringView value) noexcept;
+StringView trim(StringView value) noexcept;
 
 // ASCII 영문자만 case-fold하고 그 외 byte는 그대로 비교한다.
 int compareIgnoreAsciiCase(StringView lhs, StringView rhs) noexcept;

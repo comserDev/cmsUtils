@@ -1,8 +1,11 @@
 #include <Arduino.h>
+#include <LittleFS.h>
 
 #include <cms/util/binary_reader.h>
 #include <cms/util/binary_writer.h>
 #include <cms/util/crc32.h>
+#include <cms/util/ini/arduino_file.h>
+#include <cms/util/ini/document.h>
 #include <cms/util/log/async_logger.h>
 #include <cms/util/platform/arduino_millis_clock.h>
 #include <cms/util/platform/arduino_serial_sink.h>
@@ -23,6 +26,15 @@ Logger logger{
 
 void setup() {
     Serial.begin(115200);
+
+    cms::util::ini::Document config;
+    (void)cms::util::ini::loadFile(
+        LittleFS,
+        "/config.ini",
+        config,
+        cms::util::ini::TextMode::automatic);
+    config["Smoke"]["value"] = "1";
+    (void)cms::util::ini::saveFile(LittleFS, "/config.ini", config);
 
     cms::util::StaticByteBuffer<16> bytes;
     cms::util::BinaryWriter writer(bytes.buffer());

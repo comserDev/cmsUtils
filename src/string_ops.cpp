@@ -113,7 +113,7 @@ bool endsWith(StringView value, StringView suffix) noexcept {
         && bytesEqual(value, value.size() - suffix.size(), suffix);
 }
 
-StringView trimAsciiWhitespace(StringView value) noexcept {
+StringView trim(StringView value) noexcept {
     std::size_t begin = 0;
     while (begin < value.size() && isAsciiWhitespace(value[begin])) {
         ++begin;
