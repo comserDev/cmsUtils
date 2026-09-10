@@ -572,6 +572,33 @@ Writer는 기존 buffer 끝에 이어 쓴다. 성공한 operation만 shared size
 공간 부족은 `Status::no_space`, invalid buffer는 `Status::invalid_argument`이며 실패 시 destination
 content와 size를 변경하지 않는다. `writeBytes()`는 source/destination overlap을 지원한다.
 
+### DJB2
+
+Header: `<cms/util/hash/djb2.h>` · Namespace: `cms::util::hash`
+
+```cpp
+constexpr std::uint32_t Djb2InitialValue = 5381U;
+
+class Djb2 {
+public:
+    constexpr Djb2() noexcept;
+    constexpr void reset() noexcept;
+    constexpr void updateByte(std::uint8_t value) noexcept;
+    constexpr void update(ByteView input) noexcept;
+    constexpr void update(StringView input) noexcept;
+    constexpr std::uint32_t value() const noexcept;
+};
+
+constexpr std::uint32_t djb2(ByteView input) noexcept;
+constexpr std::uint32_t djb2(StringView input) noexcept;
+```
+
+The hash starts at `5381` and applies `hash * 33 + byte` with fixed
+`std::uint32_t` wraparound. It is byte-exact, accepts embedded NUL and other
+binary bytes, and performs no case normalization. It is a non-cryptographic
+utility; do not use it for authentication, integrity protection, or globally
+unique identifiers.
+
 ### CRC-32/ISO-HDLC
 
 Header: `<cms/util/crc32.h>` · Namespace: `cms::util::crc32`

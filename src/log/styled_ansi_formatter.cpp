@@ -1,11 +1,11 @@
 #include <cms/util/log/styled_ansi_formatter.h>
 
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <limits>
 
 #include <cms/util/format.h>
+#include <cms/util/hash/djb2.h>
 #include <cms/util/log/level.h>
 #include <cms/util/static_string.h>
 #include <cms/util/string_view.h>
@@ -81,13 +81,13 @@ StringView tagColor(StringView tagBody) noexcept {
         StringView("\033[36m")};
 
     // V1의 32-bit unsigned int DJB2 결과를 target ABI와 무관하게 고정한다.
-    std::uint32_t hash = 5381U;
+    hash::Djb2 hasher;
     for (std::size_t index = 0; index < tagBody.size(); ++index) {
         const unsigned char value = asciiUpper(
             static_cast<unsigned char>(tagBody[index]));
-        hash = ((hash << 5U) + hash) + value;
+        hasher.updateByte(static_cast<std::uint8_t>(value));
     }
-    return palette[hash % (sizeof(palette) / sizeof(palette[0]))];
+    return palette[hasher.value() % (sizeof(palette) / sizeof(palette[0]))];
 }
 
 constexpr bool asciiEqualIgnoreCase(char left, char right) noexcept {

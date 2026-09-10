@@ -1,20 +1,26 @@
-# DJB2 태그 색상 해시의 위치
+# DJB2 hash
 
-이 문서는 V1 logger의 내부 구현을 설명하던 문서다. V1의
-`cms::LoggerBase::applyStyling()`은 `[TAG]`에 적용할 ANSI 색상을 고르기 위해 대소문자를
-ASCII uppercase로 정규화한 뒤 DJB2 hash를 사용했다.
+cmsUtils V2 exposes a small, general-purpose DJB2 utility at
+`<cms/util/hash/djb2.h>`. It is a byte-exact, non-cryptographic hash with a
+fixed 32-bit wraparound contract:
 
-V2에는 public DJB2 hash API가 없다. 태그 색상 선택은
-`cms::util::log::StyledAnsiFormatter`의 presentation detail이며 application이 그 hash 값이나
-palette index에 의존하면 안 된다. V1과 같은 표시가 필요한 migration을 위해 현재 formatter는
-동등한 tag-color 동작을 유지하지만, 이는 general-purpose hash contract가 아니다.
+```text
+hash = 5381
+hash = hash * 33 + byte
+```
 
-현재 사용 방법과 안정적인 public contract는 다음 문서를 따른다.
+The public API includes the `cms::util::hash::Djb2` state object and the
+`cms::util::hash::djb2()` one-shot overloads for `ByteView` and `StringView`.
+`StringView` bytes are converted to unsigned bytes; no case normalization is
+performed by the hash itself. Embedded NUL and other binary byte values are
+valid input.
 
-- [V2 API reference](API_REFERENCE.md)
-- [V2 examples](EXAMPLES.md)
-- [V1에서 V2로 마이그레이션](MIGRATION_V1_TO_V2.md)
+The styled ANSI formatter keeps ASCII uppercase conversion as its presentation
+policy before feeding tag bytes to `Djb2`, preserving its existing V1 color
+mapping.
 
-DJB2 자체를 protocol integrity, persistent identifier, authentication 또는 collision resistance가
-필요한 용도로 사용하면 안 된다. Binary frame의 전송 오류 검출에는 별도로 제공되는
-CRC-32/ISO-HDLC API를 사용한다.
+DJB2 is not a cryptographic hash and must not be used for authentication,
+integrity protection, persistent globally unique identifiers, or collision
+resistance. Use SHA-256, HMAC, or CRC-32 according to the protocol contract.
+
+See the [V2 API reference](API_REFERENCE.md) for the public declarations.

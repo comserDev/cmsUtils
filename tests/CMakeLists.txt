@@ -53,6 +53,28 @@ cms_configure_target(cms_sha256_tests)
 add_test(NAME cms.sha256 COMMAND cms_sha256_tests)
 set_tests_properties(cms.sha256 PROPERTIES TIMEOUT 30)
 
+add_library(cms_djb2_header_compile OBJECT
+    compile/test_djb2_header.cpp
+)
+
+target_compile_features(cms_djb2_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_djb2_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_djb2_header_compile)
+
+add_executable(cms_djb2_tests
+    unit/test_djb2.cpp
+)
+
+target_link_libraries(cms_djb2_tests PRIVATE cms_utils)
+target_include_directories(cms_djb2_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_compile_features(cms_djb2_tests PRIVATE cxx_std_17)
+cms_configure_target(cms_djb2_tests)
+add_test(NAME cms.djb2 COMMAND cms_djb2_tests)
+
 add_library(cms_status_compile_contract OBJECT
     compile/test_status_contract.cpp
 )
