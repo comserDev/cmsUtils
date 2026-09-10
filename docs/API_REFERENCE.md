@@ -656,8 +656,26 @@ Empty key/data와 embedded NUL을 포함한 임의 binary input을 허용한다.
 
 계산 과정은 고정 크기 stack storage와 내부 SHA-256 streaming state만 사용하므로
 heap을 사용하지 않는다. Key 보관, digest의 hex 변환, 인증 transcript 구성,
-constant-time 검증은 caller가 맡는다. 자세한 사용 범위는 [Crypto 문서](CRYPTO.md)를
+검증 흐름은 caller가 맡는다. 자세한 사용 범위는 [Crypto 문서](CRYPTO.md)를
 참고한다.
+
+### Constant-time byte 비교
+
+Header: `<cms/util/crypto/constant_time.h>` · Namespace: `cms::util::crypto`
+
+```cpp
+bool constantTimeEqual(
+    ByteView lhs,
+    ByteView rhs) noexcept;
+```
+
+길이가 다르면 즉시 `false`를 반환한다. 길이가 같으면 모든 byte를 확인하고 첫
+mismatch 위치에서 조기에 종료하지 않는다. Empty view 두 개는 같고, empty view와
+non-empty view는 다르다. 입력을 변경하거나 heap을 사용하지 않는다.
+
+이 함수는 digest와 MAC 비교에 적합한 portable C++ primitive다. 데이터 값에 따른
+명시적인 조기 종료를 피하지만, compiler와 target architecture에 관계없이 절대적인
+실행 시간 동일성을 보증하지는 않는다.
 
 ### DJB2
 

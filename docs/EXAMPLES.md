@@ -435,22 +435,29 @@ Key와 결과 storage는 application이 소유한다.
 ```cpp
 #include <cstdint>
 
+#include <cms/util/crypto/constant_time.h>
 #include <cms/util/crypto/hmac_sha256.h>
 
 const std::uint8_t key[] = {0x00, 0x01, 0x02, 0x03};
 const std::uint8_t data[] = {'m', 'e', 's', 's', 'a', 'g', 'e'};
-std::uint8_t digest[cms::util::crypto::Sha256DigestSize] = {};
+std::uint8_t calculated[cms::util::crypto::Sha256DigestSize] = {};
 
 if (cms::util::crypto::hmacSha256(
         cms::util::ByteView(key),
         cms::util::ByteView(data),
-        digest) == cms::util::Status::ok) {
-    useDigest(digest);
+        calculated) != cms::util::Status::ok) {
+    handleHmacError();
+} else {
+    const bool authenticated = cms::util::crypto::constantTimeEqual(
+        cms::util::ByteView(calculated),
+        receivedMac);
+    handleAuthenticationResult(authenticated);
 }
 ```
 
-이 API는 digest 비교, key 보관, hex 변환을 수행하지 않는다. 인증 값을 검증할 때는
-application이 제공하는 검증된 constant-time 비교 기능을 사용해야 한다.
+HMAC API는 key 보관이나 hex 변환을 수행하지 않는다. `constantTimeEqual()`은 길이가
+같은 입력의 모든 byte를 확인하지만, 모든 compiler와 CPU에서 wall-clock 실행 시간이
+절대적으로 같다고 보증하지는 않는다.
 
 ## 19. DJB2
 

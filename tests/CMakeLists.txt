@@ -53,6 +53,27 @@ cms_configure_target(cms_sha256_tests)
 add_test(NAME cms.sha256 COMMAND cms_sha256_tests)
 set_tests_properties(cms.sha256 PROPERTIES TIMEOUT 30)
 
+add_library(cms_constant_time_header_compile OBJECT
+    compile/test_constant_time_header.cpp
+)
+
+target_compile_features(cms_constant_time_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_constant_time_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_constant_time_header_compile)
+
+add_executable(cms_constant_time_tests
+    unit/test_constant_time.cpp
+)
+
+target_link_libraries(cms_constant_time_tests PRIVATE cms_utils)
+target_include_directories(cms_constant_time_tests PRIVATE support)
+cms_configure_target(cms_constant_time_tests)
+
+add_test(NAME cms.constant_time COMMAND cms_constant_time_tests)
+set_tests_properties(cms.constant_time PROPERTIES TIMEOUT 30)
+
 add_library(cms_hmac_sha256_header_compile OBJECT
     compile/test_hmac_sha256_header.cpp
 )

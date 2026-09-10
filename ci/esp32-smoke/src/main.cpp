@@ -4,6 +4,7 @@
 #include <cms/util/binary_reader.h>
 #include <cms/util/binary_writer.h>
 #include <cms/util/crc32.h>
+#include <cms/util/crypto/constant_time.h>
 #include <cms/util/crypto/hmac_sha256.h>
 #include <cms/util/ini/arduino_file.h>
 #include <cms/util/ini/document.h>
@@ -51,9 +52,15 @@ void setup() {
         cms::util::ByteView(hmacKey),
         cms::util::ByteView(hmacData),
         hmacDigest);
+    const std::uint8_t comparisonDigest[] = {
+        0x00U, 0x01U, 0x02U, 0x03U};
+    volatile bool same = cms::util::crypto::constantTimeEqual(
+        cms::util::ByteView(hmacKey),
+        cms::util::ByteView(comparisonDigest));
     (void)value;
     (void)crc;
     (void)hmacDigest;
+    (void)same;
 
     const auto status = logger.log(
         cms::util::log::Level::info,

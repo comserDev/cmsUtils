@@ -109,6 +109,7 @@ function(cms_configure_target target_name)
 endfunction()
 
 add_library(cms_utils STATIC
+    src/crypto/constant_time.cpp
     src/crypto/hmac_sha256.cpp
     src/crypto/sha256.cpp
     src/ini/document.cpp
