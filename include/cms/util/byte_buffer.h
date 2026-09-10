@@ -44,6 +44,7 @@ public:
         return valid() ? ByteView(data_, *size_) : ByteView();
     }
 
+    // 현재 payload를 비우고 caller의 size state를 0으로 만든다.
     Status clear() noexcept {
         if (!valid()) {
             return Status::invalid_argument;

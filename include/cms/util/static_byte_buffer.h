@@ -8,6 +8,8 @@
 namespace cms {
 namespace util {
 
+// 객체 내부에 고정된 byte storage와 size를 함께 보유하는 zero-heap buffer다.
+// buffer()로 얻은 ByteBuffer를 통해 기록하고, view()로 현재 payload를 조회한다.
 template<std::size_t Capacity>
 class StaticByteBuffer {
     static_assert(Capacity > 0, "StaticByteBuffer capacity must be positive");

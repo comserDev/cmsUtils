@@ -11,6 +11,7 @@ namespace platform {
 // wall clock이 아닌 monotonic relative timestamp를 milliseconds로 반환한다.
 class SteadyClock {
 public:
+    // steady clock의 epoch 기준 경과 milliseconds를 반환한다.
     log::Timestamp nowMilliseconds() noexcept {
         const auto elapsed = std::chrono::duration_cast<
             std::chrono::milliseconds>(

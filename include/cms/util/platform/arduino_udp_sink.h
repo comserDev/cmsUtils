@@ -14,6 +14,7 @@ namespace platform {
 template<class Udp, class Address>
 class ArduinoUdpSink {
 public:
+    // 지정한 remote address와 port로 packet을 보내는 sink를 만든다.
     ArduinoUdpSink(
         Udp& udp,
         Address remoteAddress,
@@ -22,6 +23,8 @@ public:
           remoteAddress_(remoteAddress),
           remotePort_(remotePort) {}
 
+    // 하나의 UDP packet으로 data를 전송한다. begin/write/end 중 하나라도
+    // 실패하면 io_error를 반환한다.
     Status write(StringView data) {
         if (data.empty()) {
             return Status::ok;

@@ -38,6 +38,8 @@ public:
     StdFileSink& operator=(StdFileSink&&) = delete;
 
     // 열린 handle의 implicit close/reopen은 하지 않고 caller의 상태 오류로 처리한다.
+    // path의 파일을 열어 append 또는 truncate 모드로 연결한다. 이미 열린
+    // handle은 암묵적으로 닫지 않고 invalid_argument를 반환한다.
     Status open(
         const char* path,
         FileOpenMode mode = FileOpenMode::append) {
@@ -68,6 +70,7 @@ public:
         return file_ != nullptr ? Status::ok : Status::io_error;
     }
 
+    // 파일에 data의 명시된 byte 수를 기록한다. NUL 종료를 요구하지 않는다.
     Status write(StringView data) {
         if (file_ == nullptr) {
             return Status::invalid_argument;
@@ -81,6 +84,7 @@ public:
             : Status::io_error;
     }
 
+    // C stdio buffer를 flush한다. 파일 durability까지 보장하지는 않는다.
     Status flush() {
         if (file_ == nullptr) {
             return Status::invalid_argument;
@@ -88,6 +92,7 @@ public:
         return std::fflush(file_) == 0 ? Status::ok : Status::io_error;
     }
 
+    // 열린 파일을 닫고 handle을 비운다. 닫혀 있으면 성공으로 처리한다.
     Status close() {
         if (file_ == nullptr) {
             return Status::ok;

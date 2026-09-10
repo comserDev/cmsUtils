@@ -8,6 +8,8 @@ namespace cms {
 namespace util {
 namespace ini {
 
+// fs::FS에서 파일을 읽어 document에 반영한다. 파일 읽기나 UTF-8 검증에
+// 실패하면 기존 document는 변경하지 않는다.
 inline Status loadFile(
     fs::FS& filesystem,
     const char* path,
@@ -41,6 +43,7 @@ inline Status loadFile(
     return document.replaceFromText(content, mode);
 }
 
+// document를 fs::FS 파일에 저장한다. 출력 write가 실패하면 io_error를 반환한다.
 inline Status saveFile(
     fs::FS& filesystem,
     const char* path,

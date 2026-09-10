@@ -23,6 +23,7 @@ WriteResult formatStyledAnsi(
     StringBuffer output) noexcept;
 
 struct StyledAnsiFormatter {
+    // level, tag color, keyword 강조를 적용하는 formatter 정책 타입이다.
     static WriteResult format(
         const Record& record,
         StringBuffer output) noexcept {
@@ -33,16 +34,20 @@ struct StyledAnsiFormatter {
 // setUseColor, useColor, format을 동시에 호출하려면 caller가 외부에서 동기화한다.
 class RuntimeStyledAnsiFormatter {
 public:
+    // 기본값은 color를 사용하는 V1 호환 동작이다.
     RuntimeStyledAnsiFormatter() noexcept = default;
 
+    // 이후 format 호출에서 ANSI styling을 사용할지 설정한다.
     void setUseColor(bool enabled) noexcept {
         useColor_ = enabled;
     }
 
+    // 현재 color 설정을 반환한다.
     bool useColor() const noexcept {
         return useColor_;
     }
 
+    // 설정에 따라 styled 또는 plain output을 transactional하게 기록한다.
     WriteResult format(
         const Record& record,
         StringBuffer output) const noexcept {

@@ -69,6 +69,7 @@ constexpr unsigned char asciiUpper(unsigned char value) noexcept {
 }
 
 StringView tagColor(StringView tagBody) noexcept {
+    // V1 호환을 위해 tag body를 ASCII uppercase한 byte sequence로 hash해 색상을 선택한다.
     static constexpr StringView palette[] = {
         StringView("\033[92m"),
         StringView("\033[93m"),

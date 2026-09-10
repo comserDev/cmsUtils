@@ -14,9 +14,11 @@ namespace platform {
 template<class Serial>
 class ArduinoSerialSink {
 public:
+    // serial object를 소유하지 않는 sink를 만든다.
     explicit ArduinoSerialSink(Serial& serial) noexcept
         : serial_(&serial) {}
 
+    // text의 길이를 그대로 사용해 Serial에 기록한다.
     Status write(StringView text) {
         if (text.empty()) {
             return Status::ok;

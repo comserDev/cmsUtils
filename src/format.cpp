@@ -189,6 +189,7 @@ WriteResult formatFloatingPoint(
     StringBuffer output,
     unsigned int decimalPlaces,
     bool append) noexcept {
+    // scratch 표현을 완성한 뒤 capacity를 확인하고 한 번에 output에 publish한다.
     if (!output.valid() || decimalPlaces > maximumDecimalPlaces
         || !std::isfinite(value)) {
         return {Status::invalid_argument, 0, 0};

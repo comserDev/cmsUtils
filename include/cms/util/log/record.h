@@ -20,6 +20,8 @@ struct Record {
 };
 
 template<std::size_t MessageBytes>
+// message를 고정 storage에 복사해 보관하는 zero-heap record다. assign이 실패하면
+// level과 timestamp를 포함한 기존 record 상태를 유지한다.
 class StaticRecord {
     static_assert(
         MessageBytes > 0,
@@ -53,6 +55,7 @@ public:
         return {level_, timestampMilliseconds_, message_.view()};
     }
 
+    // message를 복사한 뒤 성공할 때만 metadata와 함께 새 record를 publish한다.
     WriteResult assign(
         Level level,
         Timestamp timestampMilliseconds,

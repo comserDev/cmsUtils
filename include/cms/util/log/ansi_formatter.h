@@ -20,6 +20,7 @@ WriteResult formatAnsi(
     StringBuffer output) noexcept;
 
 struct AnsiFormatter {
+    // level badge에 ANSI 색상만 적용하는 formatter 정책 타입이다.
     static constexpr std::size_t maxOverhead =
         maxAnsiFormattedRecordOverhead;
 

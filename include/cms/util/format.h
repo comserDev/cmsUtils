@@ -39,7 +39,8 @@ WriteResult appendSignedInteger(
     unsigned int base = 10,
     bool uppercase = false) noexcept;
 
-// Fixed decimal만 지원하며 decimalPlaces 범위는 0..9다.
+// Fixed decimal만 지원하며 decimalPlaces 범위는 0..9다. 결과는 지정한
+// 소수 자릿수로 반올림하고 공간 부족 시 output을 변경하지 않는다.
 // 반올림은 represented value를 기준으로 halfway away from zero를 사용한다.
 WriteResult floatingPoint(
     double value,

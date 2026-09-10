@@ -15,6 +15,8 @@ namespace sync {
 template<class Queue, class Mutex>
 class SynchronizedQueue {
 public:
+    // Queue와 Mutex를 값으로 구성한다. mutable queue operation은 내부 lock으로
+    // 보호되며 consumeFront callback 실행 중에도 lock이 유지된다.
     SynchronizedQueue() = default;
 
     template<
@@ -34,6 +36,7 @@ public:
     SynchronizedQueue(SynchronizedQueue&&) = delete;
     SynchronizedQueue& operator=(SynchronizedQueue&&) = delete;
 
+    // 현재 queue size를 lock을 획득한 뒤 반환한다.
     std::size_t size() const
         noexcept(
             noexcept(std::declval<Mutex&>().lock())
@@ -50,6 +53,7 @@ public:
         return queue_.capacity();
     }
 
+    // queue가 비어 있는지 lock을 획득한 뒤 확인한다.
     bool empty() const
         noexcept(
             noexcept(std::declval<Mutex&>().lock())
@@ -59,6 +63,7 @@ public:
         return queue_.empty();
     }
 
+    // queue가 가득 찼는지 lock을 획득한 뒤 확인한다.
     bool full() const
         noexcept(
             noexcept(std::declval<Mutex&>().lock())
@@ -68,6 +73,7 @@ public:
         return queue_.full();
     }
 
+    // 값 하나를 queue에 추가한다. backend가 full이면 no_space를 반환한다.
     template<class Value>
     Status push(Value&& value)
         noexcept(

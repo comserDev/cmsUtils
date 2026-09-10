@@ -13,6 +13,8 @@ namespace platform {
 // C++17 자체는 이 epoch를 보장하지 않으며 timezone offset은 적용하지 않는다.
 class SystemClock {
 public:
+    // system clock의 Unix epoch 기준 milliseconds를 반환한다. 음수는 0으로,
+    // Timestamp 범위를 넘는 값은 최댓값으로 제한한다.
     log::Timestamp nowMilliseconds() noexcept {
         const auto elapsed = std::chrono::duration_cast<
             std::chrono::milliseconds>(

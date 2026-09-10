@@ -35,6 +35,7 @@ void Document::parseDocument(
     std::string& newline,
     bool& finalNewline,
     TextMode mode) {
+    // 줄 원문은 보존하고 metadata만 구성해 save 시 주석과 unknown line을 유지한다.
     newline = "\n";
     for (std::size_t index = 0; index < content.size(); ++index) {
         if (content[index] != '\n') continue;
@@ -98,6 +99,7 @@ void Document::parseDocument(
 }
 
 void Document::rebuildIndex() {
+    // line insertion으로 vector index가 바뀔 수 있으므로 lookup metadata를 재생성한다.
     keyIndex_.clear();
     sectionIndex_.clear();
     for (std::size_t index = 0; index < lines_.size(); ++index) {
@@ -122,6 +124,7 @@ void Document::clear() {
 Status Document::replaceFromText(
     const std::string& content,
     TextMode mode) {
+    // parsing 결과를 임시 container에 완성한 뒤 성공할 때만 swap해 transactional load를 보장한다.
     std::size_t contentOffset = 0;
     TextMode effectiveMode = mode;
     const bool bom = hasUtf8Bom(content);
@@ -165,6 +168,7 @@ Status Document::replaceFromText(
 }
 
 std::string Document::serialize() const {
+    // 보존한 줄 순서와 newline/final-newline 정책을 사용해 원본 구조를 재구성한다.
     std::string result;
     for (std::size_t index = 0; index < lines_.size(); ++index) {
         if (index != 0) result += newline_;
@@ -204,6 +208,7 @@ Status Document::setValue(
     const std::string& section,
     const std::string& key,
     const std::string& value) {
+    // 기존 마지막 duplicate를 갱신하거나 section 경계를 유지한 위치에 새 line을 삽입한다.
     if (key.empty()) return Status::invalid_argument;
 
     const LookupKey lookup{section, key};

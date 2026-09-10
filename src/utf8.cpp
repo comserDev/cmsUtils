@@ -76,8 +76,8 @@ StringView trim(StringView value) noexcept {
         const DecodeResult decoded =
             detail::utf8::decodeNext(value, offset);
         if (decoded.status != Status::ok) {
-            // Invalid bytes are data, not whitespace. Preserve them and all
-            // following bytes because this view has no error return channel.
+            // 잘못된 byte는 공백이 아닌 데이터다. 이 view에는 오류를 반환할
+            // 방법이 없으므로 이후 byte까지 그대로 보존한다.
             return value.substr(begin, value.size() - begin);
         }
 

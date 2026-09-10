@@ -18,16 +18,20 @@ public:
     static constexpr std::size_t maxOverhead =
         maxAnsiFormattedRecordOverhead;
 
+    // 기본값은 ANSI color를 사용하는 V1 호환 동작이다.
     RuntimeAnsiFormatter() noexcept = default;
 
+    // 이후 format 호출에서 ANSI color를 사용할지 설정한다.
     void setUseColor(bool enabled) noexcept {
         useColor_ = enabled;
     }
 
+    // 현재 color 설정을 반환한다.
     bool useColor() const noexcept {
         return useColor_;
     }
 
+    // 설정에 따라 ANSI 또는 plain format을 transactional하게 기록한다.
     WriteResult format(
         const Record& record,
         StringBuffer output) const noexcept {

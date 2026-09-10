@@ -10,6 +10,7 @@ namespace sync {
 template<class Mutex>
 class LockGuard {
 public:
+    // 생성 시 lock하고 소멸 시 unlock하는 scope guard다.
     explicit LockGuard(Mutex& mutex)
         noexcept(noexcept(mutex.lock()))
         : mutex_(mutex) {

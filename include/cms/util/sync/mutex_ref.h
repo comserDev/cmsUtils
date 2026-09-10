@@ -10,6 +10,7 @@ namespace sync {
 template<class Mutex>
 class MutexRef {
 public:
+    // mutex를 소유하지 않고 외부 객체에 lock/unlock을 전달한다.
     explicit MutexRef(Mutex& mutex) noexcept
         : mutex_(&mutex) {}
 

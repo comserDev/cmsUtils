@@ -52,6 +52,7 @@ constexpr std::uint32_t majority(
 }
 
 void transform(Sha256Context& context, const std::uint8_t* block) noexcept {
+    // 64-byte block 하나를 message schedule로 확장해 SHA-256 state에 반영한다.
     std::uint32_t schedule[64] = {};
     for (std::size_t i = 0; i < 16; ++i) {
         const std::size_t offset = i * 4;
@@ -108,6 +109,7 @@ void transform(Sha256Context& context, const std::uint8_t* block) noexcept {
 }
 
 void initialize(Sha256Context& context) noexcept {
+    // SHA-256 표준 초기 state와 빈 입력 길이로 context를 초기화한다.
     context.state[0] = 0x6A09E667U;
     context.state[1] = 0xBB67AE85U;
     context.state[2] = 0x3C6EF372U;
@@ -121,6 +123,7 @@ void initialize(Sha256Context& context) noexcept {
 }
 
 void update(Sha256Context& context, ByteView input) noexcept {
+    // 완전한 block은 즉시 처리하고 남은 byte는 context buffer에 보관한다.
     context.totalBytes += static_cast<std::uint64_t>(input.size());
     std::size_t position = 0;
     while (position < input.size()) {
@@ -142,6 +145,7 @@ void update(Sha256Context& context, ByteView input) noexcept {
 void finalize(
     Sha256Context& context,
     std::uint8_t (&digest)[Sha256DigestSize]) noexcept {
+    // padding과 big-endian bit length를 붙여 마지막 block을 처리한다.
     context.block[context.buffered++] = 0x80U;
     if (context.buffered > 56) {
         while (context.buffered < sizeof(context.block)) {

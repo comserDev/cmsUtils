@@ -52,6 +52,7 @@ ParseResult<std::uint64_t> parseMagnitude(
     std::size_t digitOffset,
     unsigned int base,
     std::uint64_t limit) noexcept {
+    // 부호와 무관한 magnitude를 parsing하며 overflow digit 위치를 함께 보고한다.
     std::uint64_t value = 0;
     std::size_t offset = digitOffset;
     bool hasDigit = false;

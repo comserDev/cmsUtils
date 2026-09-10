@@ -26,6 +26,8 @@ public:
         return data_[index];
     }
 
+    // byte offset과 count로 subview를 만들며, count가 남은 길이를 넘으면
+    // 끝까지 clamp한다. 범위를 벗어난 offset은 빈 view를 반환한다.
     constexpr ByteView subview(
         std::size_t offset,
         std::size_t count) const noexcept {
