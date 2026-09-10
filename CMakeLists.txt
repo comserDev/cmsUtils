@@ -109,6 +109,7 @@ function(cms_configure_target target_name)
 endfunction()
 
 add_library(cms_utils STATIC
+    src/crypto/sha256.cpp
     src/format.cpp
     src/log/ansi_formatter.cpp
     src/log/formatter.cpp
