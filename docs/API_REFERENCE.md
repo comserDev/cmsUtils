@@ -635,8 +635,29 @@ Status sha256(
 
 `sha256()`는 입력 byte 전체를 SHA-256으로 계산해 caller가 제공한 32-byte
 `digest` 배열에 기록한다. 입력은 `ByteView`로 받으므로 embedded NUL과 임의의
-binary byte를 처리할 수 있다. 이 함수는 digest 계산만 제공하며 HMAC, secret 관리,
+binary byte를 처리할 수 있다. 이 함수는 digest 계산만 제공하며 secret 관리,
 constant-time 비교나 인증 절차를 제공하지 않는다.
+
+### HMAC-SHA256
+
+Header: `<cms/util/crypto/hmac_sha256.h>` · Namespace: `cms::util::crypto`
+
+```cpp
+Status hmacSha256(
+    ByteView key,
+    ByteView data,
+    std::uint8_t (&digest)[Sha256DigestSize]) noexcept;
+```
+
+`hmacSha256()`는 RFC 2104/RFC 4231 방식으로 raw 32-byte digest를 계산한다.
+Empty key/data와 embedded NUL을 포함한 임의 binary input을 허용한다. 64 byte보다
+긴 key는 먼저 SHA-256으로 줄여 사용한다. 잘못된 `ByteView`를 받으면
+`Status::invalid_argument`를 반환하고 기존 `digest`를 변경하지 않는다.
+
+계산 과정은 고정 크기 stack storage와 내부 SHA-256 streaming state만 사용하므로
+heap을 사용하지 않는다. Key 보관, digest의 hex 변환, 인증 transcript 구성,
+constant-time 검증은 caller가 맡는다. 자세한 사용 범위는 [Crypto 문서](CRYPTO.md)를
+참고한다.
 
 ### DJB2
 

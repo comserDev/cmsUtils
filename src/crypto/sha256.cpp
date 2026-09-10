@@ -1,16 +1,12 @@
 #include <cms/util/crypto/sha256.h>
 
+#include "sha256_detail.h"
+
 namespace cms {
 namespace util {
 namespace crypto {
+namespace detail {
 namespace {
-
-struct Sha256Context {
-    std::uint32_t state[8];
-    std::uint8_t block[64];
-    std::uint64_t totalBytes;
-    std::size_t buffered;
-};
 
 constexpr std::uint32_t roundConstants[64] = {
     0x428A2F98U, 0x71374491U, 0xB5C0FBCFU, 0xE9B5DBA5U,
@@ -108,7 +104,9 @@ void transform(Sha256Context& context, const std::uint8_t* block) noexcept {
     context.state[7] += h;
 }
 
-void initialize(Sha256Context& context) noexcept {
+} // namespace
+
+void initializeSha256(Sha256Context& context) noexcept {
     // SHA-256 표준 초기 state와 빈 입력 길이로 context를 초기화한다.
     context.state[0] = 0x6A09E667U;
     context.state[1] = 0xBB67AE85U;
@@ -122,7 +120,7 @@ void initialize(Sha256Context& context) noexcept {
     context.buffered = 0;
 }
 
-void update(Sha256Context& context, ByteView input) noexcept {
+void updateSha256(Sha256Context& context, ByteView input) noexcept {
     // 완전한 block은 즉시 처리하고 남은 byte는 context buffer에 보관한다.
     context.totalBytes += static_cast<std::uint64_t>(input.size());
     std::size_t position = 0;
@@ -142,7 +140,7 @@ void update(Sha256Context& context, ByteView input) noexcept {
     }
 }
 
-void finalize(
+void finalizeSha256(
     Sha256Context& context,
     std::uint8_t (&digest)[Sha256DigestSize]) noexcept {
     // padding과 big-endian bit length를 붙여 마지막 block을 처리한다.
@@ -173,7 +171,7 @@ void finalize(
     }
 }
 
-} // namespace
+} // namespace detail
 
 Status sha256(
     ByteView input,
@@ -182,12 +180,12 @@ Status sha256(
         return Status::invalid_argument;
     }
 
-    Sha256Context context{};
-    initialize(context);
-    update(context, input);
+    detail::Sha256Context context{};
+    detail::initializeSha256(context);
+    detail::updateSha256(context, input);
 
     std::uint8_t result[Sha256DigestSize] = {};
-    finalize(context, result);
+    detail::finalizeSha256(context, result);
     for (std::size_t i = 0; i < Sha256DigestSize; ++i) {
         digest[i] = result[i];
     }

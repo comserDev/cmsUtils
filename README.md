@@ -9,7 +9,7 @@
 - `StringView`, `StringBuffer`, `StaticString<N>`과 UTF-8/format/parse 알고리즘
 - `ByteView`, `ByteBuffer`, `StaticByteBuffer<N>`
 - 범위 검사를 수행하는 big-endian `BinaryReader`와 `BinaryWriter`
-- one-shot/incremental CRC-32/ISO-HDLC, SHA-256, DJB2
+- one-shot/incremental CRC-32/ISO-HDLC, SHA-256, HMAC-SHA256, DJB2
 - fixed-capacity `StaticQueue`와 synchronization wrapper
 - queue, clock, formatter, sink를 조합하는 `AsyncLogger`
 - `StdQueueAsyncLogger`, `StdFileSink` 같은 명시적 Host 편의 기능
@@ -119,6 +119,7 @@ CI는 GCC, Clang, MSVC와 ESP32 빌드 경로를 확인한다.
 - [API 레퍼런스](docs/API_REFERENCE.md)
 - [사용 예제](docs/EXAMPLES.md)
 - [Binary utilities 계약](docs/BINARY_UTILITIES.md)
+- [Crypto](docs/CRYPTO.md)
 - [DJB2 문서](docs/DJB2_HASH.md)
 - [INI 문서](docs/INI.md)
 - [V1에서 V2로 마이그레이션](docs/MIGRATION_V1_TO_V2.md)

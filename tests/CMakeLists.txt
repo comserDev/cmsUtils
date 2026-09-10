@@ -53,6 +53,27 @@ cms_configure_target(cms_sha256_tests)
 add_test(NAME cms.sha256 COMMAND cms_sha256_tests)
 set_tests_properties(cms.sha256 PROPERTIES TIMEOUT 30)
 
+add_library(cms_hmac_sha256_header_compile OBJECT
+    compile/test_hmac_sha256_header.cpp
+)
+
+target_compile_features(cms_hmac_sha256_header_compile PRIVATE cxx_std_17)
+target_include_directories(cms_hmac_sha256_header_compile PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+cms_configure_target(cms_hmac_sha256_header_compile)
+
+add_executable(cms_hmac_sha256_tests
+    unit/test_hmac_sha256.cpp
+)
+
+target_link_libraries(cms_hmac_sha256_tests PRIVATE cms_utils)
+target_include_directories(cms_hmac_sha256_tests PRIVATE support)
+cms_configure_target(cms_hmac_sha256_tests)
+
+add_test(NAME cms.hmac_sha256 COMMAND cms_hmac_sha256_tests)
+set_tests_properties(cms.hmac_sha256 PROPERTIES TIMEOUT 30)
+
 add_library(cms_djb2_header_compile OBJECT
     compile/test_djb2_header.cpp
 )

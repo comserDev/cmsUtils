@@ -410,7 +410,7 @@ Wire format이 checksum field를 0으로 간주하도록 정의한다면 해당 
 ## 17. SHA-256 digest
 
 `sha256()`는 입력 byte를 32-byte digest로 계산한다. 결과 배열은 호출자가 소유하며,
-이 함수 자체는 HMAC이나 인증 절차를 제공하지 않는다.
+이 함수 자체는 인증 절차를 제공하지 않는다.
 
 ```cpp
 #include <cstdint>
@@ -427,7 +427,32 @@ if (cms::util::crypto::sha256(
 }
 ```
 
-## 18. DJB2
+## 18. HMAC-SHA256
+
+`hmacSha256()`는 key와 data를 받아 raw 32-byte HMAC-SHA256 digest를 계산한다.
+Key와 결과 storage는 application이 소유한다.
+
+```cpp
+#include <cstdint>
+
+#include <cms/util/crypto/hmac_sha256.h>
+
+const std::uint8_t key[] = {0x00, 0x01, 0x02, 0x03};
+const std::uint8_t data[] = {'m', 'e', 's', 's', 'a', 'g', 'e'};
+std::uint8_t digest[cms::util::crypto::Sha256DigestSize] = {};
+
+if (cms::util::crypto::hmacSha256(
+        cms::util::ByteView(key),
+        cms::util::ByteView(data),
+        digest) == cms::util::Status::ok) {
+    useDigest(digest);
+}
+```
+
+이 API는 digest 비교, key 보관, hex 변환을 수행하지 않는다. 인증 값을 검증할 때는
+application이 제공하는 검증된 constant-time 비교 기능을 사용해야 한다.
+
+## 19. DJB2
 
 `Djb2`는 byte 단위 one-shot 계산과 여러 조각을 이어 계산하는 incremental update를
 모두 지원한다. 32-bit wraparound를 사용하며 cryptographic hash로 사용하지 않는다.
@@ -445,7 +470,7 @@ const std::uint32_t chunked = incremental.value();
 // chunked == oneShot
 ```
 
-## 19. INI 문서
+## 20. INI 문서
 
 `Document`는 주석과 줄 순서를 보존하면서 INI 값을 읽고 수정한다. Host와 ESP32에서
 같은 문서 모델을 사용하며, 실제 파일 입출력은 환경에 맞는 `loadFile`/`saveFile` overload를
@@ -472,7 +497,7 @@ component다. 자세한 보존 규칙은 [INI 문서](INI.md)를 참고한다.
 `TextMode::utf8`은 잘못된 입력에서 기존 `Document`를 변경하지 않고
 `Status::invalid_utf8`를 반환한다.
 
-## 20. Binary utility와 protocol의 경계
+## 21. Binary utility와 protocol의 경계
 
 Binary utility는 unsigned integer와 raw byte sequence만 읽고 쓴다. 다음 의미는 application 또는
 protocol codec이 정의한다.

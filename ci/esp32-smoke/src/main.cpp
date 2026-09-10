@@ -4,6 +4,7 @@
 #include <cms/util/binary_reader.h>
 #include <cms/util/binary_writer.h>
 #include <cms/util/crc32.h>
+#include <cms/util/crypto/hmac_sha256.h>
 #include <cms/util/ini/arduino_file.h>
 #include <cms/util/ini/document.h>
 #include <cms/util/log/async_logger.h>
@@ -43,8 +44,16 @@ void setup() {
     std::uint32_t value = 0;
     (void)reader.readUint32BigEndian(value);
     volatile std::uint32_t crc = cms::util::crc32::isoHdlc(bytes.view());
+    const std::uint8_t hmacKey[] = {0x00U, 0x01U, 0x02U, 0x03U};
+    const std::uint8_t hmacData[] = {0x80U, 0x00U, 0xFFU};
+    std::uint8_t hmacDigest[cms::util::crypto::Sha256DigestSize] = {};
+    (void)cms::util::crypto::hmacSha256(
+        cms::util::ByteView(hmacKey),
+        cms::util::ByteView(hmacData),
+        hmacDigest);
     (void)value;
     (void)crc;
+    (void)hmacDigest;
 
     const auto status = logger.log(
         cms::util::log::Level::info,
